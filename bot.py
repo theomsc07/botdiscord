@@ -1,116 +1,193 @@
 import discord
 from discord.ext import commands
-import os
 import asyncio
+import os
 from collections import defaultdict
 
-# ---------------- INTENTS ----------------
+# =========================
+# INTENTS
+# =========================
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="+", intents=intents)
 
-# ---------------- TOKEN ----------------
-TOKEN = os.getenv("DISCORD_TOKEN")
+# =========================
+# SANCTIONS
+# =========================
+sanctions = defaultdict(list)
 
-# ---------------- IDS ----------------
-LOG_CHANNEL_ID = 1508482233219022992
+# =========================
+# IDS
+# =========================
 
+# LOGS
+LOG_CHANNEL_ID = 1508595464168013965
+
+# ROLE STAFF GENERAL
+ROLE_STAFF = 1504810257715822722
+
+# ROLES STAFF
 ROLE_T = 1504792771977023591
 ROLE_C = 1504792768088903931
 ROLE_PLUS = 1504792764448116776
 ROLE_SENIOR = 1504792759679057951
 ROLE_ADMIN = 1504792748098715660
-ROLE_STAFF = 1504810257715822722
 
-# ---------------- DATA ----------------
-sanctions = defaultdict(list)
-
-# ---------------- READY ----------------
+# =========================
+# READY
+# =========================
 @bot.event
 async def on_ready():
-    print(f"Bot connecté : {bot.user}")
+    print(f"{bot.user} connecté ✅")
 
-# ---------------- LOG ----------------
-async def send_log(guild, message):
-    try:
-        channel = guild.get_channel(LOG_CHANNEL_ID)
-        if channel:
-            await channel.send(message)
-    except:
-        pass
+# =========================
+# LOGS
+# =========================
+async def send_log(guild, title, description):
 
-# ---------------- PING ----------------
+    channel = guild.get_channel(LOG_CHANNEL_ID)
+
+    if not channel:
+        return
+
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=discord.Color.red()
+    )
+
+    await channel.send(embed=embed)
+
+# =========================
+# REMOVE STAFF ROLES
+# =========================
+async def remove_all_staff_roles(member):
+
+    roles = [
+        ROLE_T,
+        ROLE_C,
+        ROLE_PLUS,
+        ROLE_SENIOR,
+        ROLE_ADMIN
+    ]
+
+    for role_id in roles:
+
+        role = member.guild.get_role(role_id)
+
+        if role and role in member.roles:
+            await member.remove_roles(role)
+
+# =========================
+# PING
+# =========================
 @bot.command()
 async def ping(ctx):
-    await ctx.send("Pong 🏓")
 
-# ---------------- CLEAR ----------------
+    await ctx.send(
+        f"🏓 {ctx.author.mention} Pong !"
+    )
+
+# =========================
+# WARN
+# =========================
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def clear(ctx, amount: int):
-    await ctx.channel.purge(limit=amount + 1)
-    await ctx.send(f"🧹 {amount} messages supprimés", delete_after=3)
-
-# ---------------- WARN ----------------
-@bot.command()
-@commands.has_permissions(kick_members=True)
 async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
 
     sanctions[member.id].append(reason)
 
-    await ctx.send(f"⚠️ {member.mention} warn : {reason}")
-    await send_log(ctx.guild, f"WARN | {member} | {reason}")
+    await ctx.send(
+        f"⚠️ {member.mention} a été warn\n📌 Raison : {reason}"
+    )
 
-# ---------------- SANCTIONS ----------------
+    await send_log(
+        ctx.guild,
+        "⚠️ WARN",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+📌 Raison : {reason}
+"""
+    )
+
+# =========================
+# SANCTIONS
+# =========================
+@bot.command(name="sanctions")
+@commands.has_permissions(manage_messages=True)
+async def sanctions_cmd(ctx, member: discord.Member):
+
+    user_sanctions = sanctions.get(member.id)
+
+    if not user_sanctions:
+
+        return await ctx.send(
+            f"✅ {member.mention} n'a aucune sanction"
+        )
+
+    msg = "\n".join(
+        [f"{i+1}. {s}" for i, s in enumerate(user_sanctions)]
+    )
+
+    await ctx.send(
+        f"📋 Sanctions de {member.mention} :\n{msg}"
+    )
+
+# =========================
+# CLEAR SANCTIONS
+# =========================
 @bot.command()
-async def sanctions(ctx, member: discord.Member):
-
-    if len(sanctions[member.id]) == 0:
-        return await ctx.send("❌ Aucune sanction")
-
-    msg = "\n".join([f"- {s}" for s in sanctions[member.id]])
-    await ctx.send(f"📌 Sanctions de {member}:\n{msg}")
-
-# ---------------- CLEAR SANCTIONS ----------------
-@bot.command()
-@commands.has_permissions(kick_members=True)
+@commands.has_permissions(administrator=True)
 async def clear_sanctions(ctx, member: discord.Member):
 
-    sanctions[member.id].clear()
+    sanctions[member.id] = []
 
-    await ctx.send(f"🧹 Sanctions supprimées pour {member.mention}")
-    await send_log(ctx.guild, f"CLEAR_SANCTIONS | {member}")
+    await ctx.send(
+        f"🧹 Les sanctions de {member.mention} ont été supprimées"
+    )
 
-# ---------------- BAN ----------------
+    await send_log(
+        ctx.guild,
+        "🧹 CLEAR SANCTIONS",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+📌 Toutes les sanctions ont été supprimées
+"""
+    )
+
+# =========================
+# CLEAR
+# =========================
 @bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason="Aucune raison"):
+@commands.has_permissions(manage_messages=True)
+async def clear(ctx, amount: int):
 
-    try:
-        await member.ban(reason=reason)
-        await ctx.send(f"🔨 {member} ban : {reason}")
-        await send_log(ctx.guild, f"BAN | {member} | {reason}")
-    except:
-        await ctx.send("❌ Impossible de ban")
+    await ctx.channel.purge(limit=amount + 1)
 
-# ---------------- UNBAN ----------------
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def unban(ctx, user_id: int):
+    msg = await ctx.send(
+        f"🧹 {ctx.author.mention} a supprimé {amount} messages"
+    )
 
-    try:
-        user = await bot.fetch_user(user_id)
-        await ctx.guild.unban(user)
+    await send_log(
+        ctx.guild,
+        "🧹 CLEAR",
+        f"""
+👮 Staff : {ctx.author.mention}
+📌 Messages supprimés : {amount}
+📍 Salon : {ctx.channel.mention}
+"""
+    )
 
-        await ctx.send(f"♻️ Unban {user}")
-        await send_log(ctx.guild, f"UNBAN | {user}")
+    await asyncio.sleep(3)
+    await msg.delete()
 
-    except:
-        await ctx.send("❌ Erreur unban")
-
-# ---------------- MUTE ----------------
+# =========================
+# MUTE
+# =========================
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def mute(ctx, member: discord.Member):
@@ -119,28 +196,50 @@ async def mute(ctx, member: discord.Member):
 
     if not role:
         role = await ctx.guild.create_role(name="Muted")
-        for channel in ctx.guild.channels:
-            await channel.set_permissions(role, send_messages=False, speak=False)
 
     await member.add_roles(role)
 
-    await ctx.send(f"🔇 {member} mute")
-    await send_log(ctx.guild, f"MUTE | {member}")
+    await ctx.send(
+        f"🔇 {member.mention} a été mute"
+    )
 
-# ---------------- UNMUTE ----------------
+    await send_log(
+        ctx.guild,
+        "🔇 MUTE",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+"""
+    )
+
+# =========================
+# UNMUTE
+# =========================
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def unmute(ctx, member: discord.Member):
 
     role = discord.utils.get(ctx.guild.roles, name="Muted")
 
-    if role:
+    if role in member.roles:
         await member.remove_roles(role)
 
-    await ctx.send(f"🔊 {member} unmute")
-    await send_log(ctx.guild, f"UNMUTE | {member}")
+    await ctx.send(
+        f"🔊 {member.mention} a été unmute"
+    )
 
-# ---------------- TEMPMUTE ----------------
+    await send_log(
+        ctx.guild,
+        "🔊 UNMUTE",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+"""
+    )
+
+# =========================
+# TEMPMUTE
+# =========================
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def tempmute(ctx, member: discord.Member, time: int):
@@ -149,108 +248,122 @@ async def tempmute(ctx, member: discord.Member, time: int):
 
     if not role:
         role = await ctx.guild.create_role(name="Muted")
-        for channel in ctx.guild.channels:
-            await channel.set_permissions(role, send_messages=False, speak=False)
 
     await member.add_roles(role)
 
-    await ctx.send(f"⏳ {member} mute {time}s")
+    await ctx.send(
+        f"⏳ {member.mention} mute pendant {time} secondes"
+    )
+
+    await send_log(
+        ctx.guild,
+        "⏳ TEMPMUTE",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+⏱️ Temps : {time} secondes
+"""
+    )
 
     await asyncio.sleep(time)
 
-    await member.remove_roles(role)
+    if role in member.roles:
+        await member.remove_roles(role)
 
-    await ctx.send(f"🔊 {member} unmute auto")
+    await ctx.send(
+        f"🔊 {member.mention} n'est plus mute"
+    )
 
-# ---------------- REMOVE ROLES ----------------
-async def remove_staff(member):
-    role_ids = [ROLE_T, ROLE_C, ROLE_PLUS, ROLE_SENIOR, ROLE_ADMIN, ROLE_STAFF]
-
-    for role_id in role_ids:
-        role = member.guild.get_role(role_id)
-        if role and role in member.roles:
-            try:
-                await member.remove_roles(role)
-            except:
-                pass
-
-# ---------------- RANK T ----------------
-@bot.command(name="rank-t")
-@commands.has_permissions(manage_roles=True)
-async def rank_t(ctx, member: discord.Member):
-
-    await remove_staff(member)
-
-    role = ctx.guild.get_role(ROLE_T)
-    if role:
-        await member.add_roles(role)
-
-    await ctx.send(f"📌 {member.mention} → Modo Test")
-
-# ---------------- RANK C ----------------
-@bot.command(name="rank-c")
-@commands.has_permissions(manage_roles=True)
-async def rank_c(ctx, member: discord.Member):
-
-    await remove_staff(member)
-
-    role = ctx.guild.get_role(ROLE_C)
-    if role:
-        await member.add_roles(role)
-
-    await ctx.send(f"📌 {member.mention} → Modo Confirmé")
-
-# ---------------- RANK PLUS ----------------
-@bot.command(name="rank-plus")
-@commands.has_permissions(manage_roles=True)
-async def rank_plus(ctx, member: discord.Member):
-
-    await remove_staff(member)
-
-    role = ctx.guild.get_role(ROLE_PLUS)
-    if role:
-        await member.add_roles(role)
-
-    await ctx.send(f"📌 {member.mention} → Modo +")
-
-# ---------------- RANK SENIOR ----------------
-@bot.command(name="rank-s")
-@commands.has_permissions(manage_roles=True)
-async def rank_s(ctx, member: discord.Member):
-
-    await remove_staff(member)
-
-    role = ctx.guild.get_role(ROLE_SENIOR)
-    if role:
-        await member.add_roles(role)
-
-    await ctx.send(f"📌 {member.mention} → Senior")
-
-# ---------------- RANK ADMIN ----------------
-@bot.command(name="rank-admin")
-@commands.has_permissions(manage_roles=True)
-async def rank_admin(ctx, member: discord.Member):
-
-    await remove_staff(member)
-
-    role = ctx.guild.get_role(ROLE_ADMIN)
-    if role:
-        await member.add_roles(role)
-
-    await ctx.send(f"👑 {member.mention} → Admin")
-
-# ---------------- DERANK ----------------
+# =========================
+# DERANK
+# =========================
 @bot.command()
-@commands.has_permissions(manage_roles=True)
+@commands.has_permissions(administrator=True)
 async def derank(ctx, member: discord.Member):
 
-    await remove_staff(member)
+    await remove_all_staff_roles(member)
 
-    await ctx.send(f"⬇️ {member.mention} derank effectué")
-    await send_log(ctx.guild, f"DERANK | {member} | {ctx.author}")
+    staff_role = ctx.guild.get_role(ROLE_STAFF)
 
-# ---------------- START BOT ----------------
-if not TOKEN:
-    print("❌ DISCORD_TOKEN manquant")
-else:
-    bot.run(TOKEN)
+    if staff_role and staff_role in member.roles:
+        await member.remove_roles(staff_role)
+
+    await ctx.send(
+        f"⬇️ {member.mention} a été derank"
+    )
+
+    await send_log(
+        ctx.guild,
+        "⬇️ DERANK",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+"""
+    )
+
+# =========================
+# RANK FUNCTION
+# =========================
+async def rank_member(ctx, member, role_id, role_name):
+
+    await remove_all_staff_roles(member)
+
+    role = ctx.guild.get_role(role_id)
+
+    if role:
+        await member.add_roles(role)
+
+    # ROLE STAFF
+    staff_role = ctx.guild.get_role(ROLE_STAFF)
+
+    if staff_role:
+        await member.add_roles(staff_role)
+
+    await ctx.send(
+        f"📌 {member.mention} est maintenant {role_name}"
+    )
+
+    await send_log(
+        ctx.guild,
+        "📌 RANK",
+        f"""
+👮 Staff : {ctx.author.mention}
+👤 Membre : {member.mention}
+📌 Nouveau grade : {role_name}
+"""
+    )
+
+# =========================
+# RANKS
+# =========================
+@bot.command(name="rank-t")
+@commands.has_permissions(administrator=True)
+async def rank_t(ctx, member: discord.Member):
+    await rank_member(ctx, member, ROLE_T, "Modo Test")
+
+@bot.command(name="rank-c")
+@commands.has_permissions(administrator=True)
+async def rank_c(ctx, member: discord.Member):
+    await rank_member(ctx, member, ROLE_C, "Modo Confirmé")
+
+@bot.command(name="rank-plus")
+@commands.has_permissions(administrator=True)
+async def rank_plus(ctx, member: discord.Member):
+    await rank_member(ctx, member, ROLE_PLUS, "Modo +")
+
+@bot.command(name="rank-s")
+@commands.has_permissions(administrator=True)
+async def rank_s(ctx, member: discord.Member):
+    await rank_member(ctx, member, ROLE_SENIOR, "Modo Senior")
+
+@bot.command(name="rank-admin")
+@commands.has_permissions(administrator=True)
+async def rank_admin(ctx, member: discord.Member):
+    await rank_member(ctx, member, ROLE_ADMIN, "Admin")
+
+# =========================
+# TOKEN
+# =========================
+token = os.getenv("DISCORD_TOKEN")
+
+bot.run(token)
