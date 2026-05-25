@@ -2,7 +2,9 @@ import discord
 from discord.ext import commands
 import asyncio
 import os
+import json
 from collections import defaultdict
+from datetime import datetime
 
 # =========================
 # INTENTS
@@ -16,7 +18,30 @@ bot = commands.Bot(command_prefix="+", intents=intents)
 # =========================
 # SANCTIONS
 # =========================
-sanctions = defaultdict(list)
+SANCTIONS_FILE = "sanctions.json"
+
+def load_sanctions():
+    if os.path.exists(SANCTIONS_FILE):
+        with open(SANCTIONS_FILE, "r") as f:
+            data = json.load(f)
+            return defaultdict(list, {int(k): v for k, v in data.items()})
+    return defaultdict(list)
+
+def save_sanctions():
+    with open(SANCTIONS_FILE, "w") as f:
+        json.dump(dict(sanctions), f, indent=4)
+
+sanctions = load_sanctions()
+
+# =========================
+# STATS STAFF
+# =========================
+staff_stats = defaultdict(lambda: {
+    "warns": 0,
+    "mutes": 0,
+    "bans": 0,
+    "clears": 0
+})
 
 # =========================
 # IDS
@@ -55,7 +80,8 @@ async def send_log(guild, title, description):
     embed = discord.Embed(
         title=title,
         description=description,
-        color=discord.Color.red()
+        color=discord.Color.red(),
+        timestamp=datetime.utcnow()
     )
 
     await channel.send(embed=embed)
@@ -98,6 +124,9 @@ async def ping(ctx):
 async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
 
     sanctions[member.id].append(reason)
+    save_sanctions()
+
+    staff_stats[ctx.author.id]["warns"] += 1
 
     await ctx.send(
         f"⚠️ {member.mention} a été warn\n📌 Raison : {reason}"
@@ -108,8 +137,13 @@ async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
         "⚠️ WARN",
         f"""
 👮 Staff : {ctx.author.mention}
+🆔 Staff ID : {ctx.author.id}
+
 👤 Membre : {member.mention}
+🆔 Membre ID : {member.id}
+
 📌 Raison : {reason}
+📍 Salon : {ctx.channel.mention}
 """
     )
 
@@ -144,6 +178,7 @@ async def sanctions_cmd(ctx, member: discord.Member):
 async def clear_sanctions(ctx, member: discord.Member):
 
     sanctions[member.id] = []
+    save_sanctions()
 
     await ctx.send(
         f"🧹 Les sanctions de {member.mention} ont été supprimées"
@@ -155,7 +190,8 @@ async def clear_sanctions(ctx, member: discord.Member):
         f"""
 👮 Staff : {ctx.author.mention}
 👤 Membre : {member.mention}
-📌 Toutes les sanctions ont été supprimées
+
+📍 Salon : {ctx.channel.mention}
 """
     )
 
@@ -166,11 +202,32 @@ async def clear_sanctions(ctx, member: discord.Member):
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx, amount: int):
 
+    if amount >= 50:
+
+        confirm = await ctx.send(
+            f"⚠️ {ctx.author.mention} confirme le clear de {amount} messages avec ✅"
+        )
+
+        await confirm.add_reaction("✅")
+
+        def check(reaction, user):
+            return (
+                user == ctx.author
+                and str(reaction.emoji) == "✅"
+            )
+
+        try:
+            await bot.wait_for("reaction_add", timeout=15, check=check)
+        except:
+            return await ctx.send("❌ Clear annulé")
+
     await ctx.channel.purge(limit=amount + 1)
 
     msg = await ctx.send(
         f"🧹 {ctx.author.mention} a supprimé {amount} messages"
     )
+
+    staff_stats[ctx.author.id]["clears"] += amount
 
     await send_log(
         ctx.guild,
@@ -197,7 +254,16 @@ async def mute(ctx, member: discord.Member):
     if not role:
         role = await ctx.guild.create_role(name="Muted")
 
+        for channel in ctx.guild.channels:
+            await channel.set_permissions(
+                role,
+                send_messages=False,
+                speak=False
+            )
+
     await member.add_roles(role)
+
+    staff_stats[ctx.author.id]["mutes"] += 1
 
     await ctx.send(
         f"🔇 {member.mention} a été mute"
@@ -209,6 +275,7 @@ async def mute(ctx, member: discord.Member):
         f"""
 👮 Staff : {ctx.author.mention}
 👤 Membre : {member.mention}
+📍 Salon : {ctx.channel.mention}
 """
     )
 
@@ -221,20 +288,11 @@ async def unmute(ctx, member: discord.Member):
 
     role = discord.utils.get(ctx.guild.roles, name="Muted")
 
-    if role in member.roles:
+    if role and role in member.roles:
         await member.remove_roles(role)
 
     await ctx.send(
         f"🔊 {member.mention} a été unmute"
-    )
-
-    await send_log(
-        ctx.guild,
-        "🔊 UNMUTE",
-        f"""
-👮 Staff : {ctx.author.mention}
-👤 Membre : {member.mention}
-"""
     )
 
 # =========================
@@ -249,7 +307,16 @@ async def tempmute(ctx, member: discord.Member, time: int):
     if not role:
         role = await ctx.guild.create_role(name="Muted")
 
+        for channel in ctx.guild.channels:
+            await channel.set_permissions(
+                role,
+                send_messages=False,
+                speak=False
+            )
+
     await member.add_roles(role)
+
+    staff_stats[ctx.author.id]["mutes"] += 1
 
     await ctx.send(
         f"⏳ {member.mention} mute pendant {time} secondes"
@@ -267,12 +334,65 @@ async def tempmute(ctx, member: discord.Member, time: int):
 
     await asyncio.sleep(time)
 
-    if role in member.roles:
+    if role and role in member.roles:
         await member.remove_roles(role)
 
     await ctx.send(
         f"🔊 {member.mention} n'est plus mute"
     )
+
+# =========================
+# STAFF STATS
+# =========================
+@bot.command()
+async def staffstats(ctx, member: discord.Member = None):
+
+    if member is None:
+        member = ctx.author
+
+    stats = staff_stats[member.id]
+
+    embed = discord.Embed(
+        title=f"📊 Stats de {member}",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(name="⚠️ Warns", value=stats["warns"])
+    embed.add_field(name="🔇 Mutes", value=stats["mutes"])
+    embed.add_field(name="🔨 Bans", value=stats["bans"])
+    embed.add_field(name="🧹 Clears", value=stats["clears"])
+
+    await ctx.send(embed=embed)
+
+# =========================
+# HELP STAFF
+# =========================
+@bot.command()
+async def helpstaff(ctx):
+
+    embed = discord.Embed(
+        title="👮 Commandes Staff",
+        color=discord.Color.green()
+    )
+
+    embed.description = """
++warn
++sanctions
++clear_sanctions
++clear
++mute
++unmute
++tempmute
++rank-t
++rank-c
++rank-plus
++rank-s
++rank-admin
++derank
++staffstats
+"""
+
+    await ctx.send(embed=embed)
 
 # =========================
 # DERANK
@@ -292,15 +412,6 @@ async def derank(ctx, member: discord.Member):
         f"⬇️ {member.mention} a été derank"
     )
 
-    await send_log(
-        ctx.guild,
-        "⬇️ DERANK",
-        f"""
-👮 Staff : {ctx.author.mention}
-👤 Membre : {member.mention}
-"""
-    )
-
 # =========================
 # RANK FUNCTION
 # =========================
@@ -313,7 +424,6 @@ async def rank_member(ctx, member, role_id, role_name):
     if role:
         await member.add_roles(role)
 
-    # ROLE STAFF
     staff_role = ctx.guild.get_role(ROLE_STAFF)
 
     if staff_role:
@@ -365,5 +475,8 @@ async def rank_admin(ctx, member: discord.Member):
 # TOKEN
 # =========================
 token = os.getenv("DISCORD_TOKEN")
+
+if token is None:
+    print("TOKEN MANQUANT ❌")
 
 bot.run(token)
