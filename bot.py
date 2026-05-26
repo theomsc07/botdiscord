@@ -19,7 +19,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="+", intents=intents)
 
 # ==================================================
-# SAVE SANCTIONS
+# SANCTIONS SAVE
 # ==================================================
 SANCTIONS_FILE = "sanctions.json"
 
@@ -30,11 +30,33 @@ def load_sanctions():
             return defaultdict(list, {int(k): v for k, v in data.items()})
     return defaultdict(list)
 
+sanctions = load_sanctions()
+
 def save_sanctions():
     with open(SANCTIONS_FILE, "w") as f:
         json.dump(dict(sanctions), f, indent=4)
 
-sanctions = load_sanctions()
+# ==================================================
+# IDS
+# ==================================================
+LOG_CHANNEL_ID = 1508595464168013965
+
+ROLE_GERANT_STAFF = 1504792751777255545
+ROLE_STAFF = 1504810257715822722
+
+ROLE_T = 1504792771977023591
+ROLE_C = 1504792768088903931
+ROLE_PLUS = 1504792764448116776
+ROLE_SENIOR = 1504792759679057951
+ROLE_ADMIN = 1504792748098715660
+
+# ==================================================
+# TICKETS IDS
+# ==================================================
+CATEGORY_TICKETS = 1504792916772786298
+FORM_CHANNEL_ID = 1504792913249570937
+ARCHIVES_CHANNEL = 1507694850282094683
+LOGS_CATEGORY = 1507737677062213732
 
 # ==================================================
 # STATS
@@ -47,24 +69,39 @@ staff_stats = defaultdict(lambda: {
 })
 
 # ==================================================
-# IDS
+# ACTIVE TICKETS
 # ==================================================
-LOG_CHANNEL_ID = 1508595464168013965
-
-ROLE_STAFF = 1504810257715822722
-
-ROLE_T = 1504792771977023591
-ROLE_C = 1504792768088903931
-ROLE_PLUS = 1504792764448116776
-ROLE_SENIOR = 1504792759679057951
-ROLE_ADMIN = 1504792748098715660
+active_tickets = defaultdict(int)
 
 # ==================================================
 # READY
 # ==================================================
 @bot.event
 async def on_ready():
+
     print(f"{bot.user} connecté ✅")
+
+    channel = bot.get_channel(FORM_CHANNEL_ID)
+
+    if channel:
+
+        embed = discord.Embed(
+            title="📢 Candidatures Staff",
+            description=(
+                "👮 Les candidatures staff sont ouvertes.\n\n"
+                "Clique sur le bouton ci-dessous pour ouvrir "
+                "ta candidature.\n\n"
+                "📌 Géré uniquement par le rôle Gérant Staff."
+            ),
+            color=discord.Color.purple()
+        )
+
+        view = TicketView()
+
+        await channel.send(
+            embed=embed,
+            view=view
+        )
 
 # ==================================================
 # LOG SYSTEM
@@ -108,6 +145,88 @@ async def remove_all_staff_roles(member):
             await member.remove_roles(role)
 
 # ==================================================
+# TICKET VIEW
+# ==================================================
+class TicketView(discord.ui.View):
+
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="🎫 Ouvrir candidature",
+        style=discord.ButtonStyle.green
+    )
+    async def open_ticket(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+
+        user = interaction.user
+
+        if active_tickets[user.id] >= 2:
+
+            return await interaction.response.send_message(
+                "❌ Tu as déjà 2 candidatures ouvertes.",
+                ephemeral=True
+            )
+
+        guild = interaction.guild
+
+        overwrites = {
+
+            guild.default_role:
+                discord.PermissionOverwrite(
+                    view_channel=False
+                ),
+
+            user:
+                discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True
+                ),
+
+            guild.get_role(
+                ROLE_GERANT_STAFF
+            ):
+                discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True
+                )
+        }
+
+        category = guild.get_channel(
+            CATEGORY_TICKETS
+        )
+
+        channel = await guild.create_text_channel(
+            name=f"candidature-{user.name}",
+            category=category,
+            overwrites=overwrites
+        )
+
+        active_tickets[user.id] += 1
+
+        embed = discord.Embed(
+            title="👋 Candidature Staff",
+            description=(
+                "Merci de remplir votre candidature.\n\n"
+                "👮 Le staff va bientôt traiter votre demande."
+            ),
+            color=discord.Color.blue()
+        )
+
+        await channel.send(
+            content=f"<@&{ROLE_GERANT_STAFF}>",
+            embed=embed
+        )
+
+        await interaction.response.send_message(
+            f"✅ Ticket créé : {channel.mention}",
+            ephemeral=True
+        )
+
+# ==================================================
 # PING
 # ==================================================
 @bot.command()
@@ -134,11 +253,11 @@ async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
     staff_stats[ctx.author.id]["warns"] += 1
 
     embed = discord.Embed(
-        title="⚠️・Warn effectué",
+        title="⚠️ Warn effectué",
         description=(
-            f"👤 **Membre :** {member.mention}\n"
-            f"👮 **Staff :** {ctx.author.mention}\n"
-            f"📌 **Raison :** {reason}"
+            f"👤 Membre : {member.mention}\n"
+            f"👮 Staff : {ctx.author.mention}\n"
+            f"📌 Raison : {reason}"
         ),
         color=discord.Color.orange()
     )
@@ -146,29 +265,20 @@ async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
     await ctx.send(embed=embed)
 
     try:
+
         await member.send(
             f"""
-⚠️ Vous avez été warn sur le serveur : {ctx.guild.name}
+⚠️ Vous avez été warn sur {ctx.guild.name}
 
 👮 Staff : {ctx.author}
 📌 Raison : {reason}
 
-Si vous pensez que c'est une erreur, merci de venir en MP avec : theo_msc
+📩 Contact : theo_msc
 """
         )
+
     except:
         pass
-
-    await send_log(
-        ctx.guild,
-        "⚠️ WARN",
-        f"""
-👮 Staff : {ctx.author.mention}
-👤 Membre : {member.mention}
-📌 Raison : {reason}
-📍 Salon : {ctx.channel.mention}
-"""
-    )
 
 # ==================================================
 # SANCTIONS
@@ -182,7 +292,7 @@ async def sanctions_cmd(ctx, member: discord.Member):
 
         embed = discord.Embed(
             title="✅ Aucune sanction",
-            description=f"{member.mention} n'a aucune sanction",
+            description=f"{member.mention} n'a aucune sanction.",
             color=discord.Color.green()
         )
 
@@ -212,7 +322,10 @@ async def clear_sanctions(ctx, member: discord.Member):
 
     embed = discord.Embed(
         title="🧹 Sanctions supprimées",
-        description=f"Les sanctions de {member.mention} ont été supprimées",
+        description=(
+            f"Les sanctions de {member.mention} "
+            f"ont été supprimées."
+        ),
         color=discord.Color.green()
     )
 
@@ -224,22 +337,6 @@ async def clear_sanctions(ctx, member: discord.Member):
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx, amount: int):
-
-    if amount >= 50:
-
-        confirm = await ctx.send(
-            f"⚠️ {ctx.author.mention} confirme le clear avec ✅"
-        )
-
-        await confirm.add_reaction("✅")
-
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) == "✅"
-
-        try:
-            await bot.wait_for("reaction_add", timeout=15, check=check)
-        except:
-            return await ctx.send("❌ Clear annulé")
 
     await ctx.channel.purge(limit=amount + 1)
 
@@ -254,16 +351,6 @@ async def clear(ctx, amount: int):
 
     msg = await ctx.send(embed=embed)
 
-    await send_log(
-        ctx.guild,
-        "🧹 CLEAR",
-        f"""
-👮 Staff : {ctx.author.mention}
-📌 Nombre : {amount}
-📍 Salon : {ctx.channel.mention}
-"""
-    )
-
     await asyncio.sleep(5)
     await msg.delete()
 
@@ -274,13 +361,19 @@ async def clear(ctx, amount: int):
 @commands.has_permissions(manage_roles=True)
 async def mute(ctx, member: discord.Member):
 
-    role = discord.utils.get(ctx.guild.roles, name="Muted")
+    role = discord.utils.get(
+        ctx.guild.roles,
+        name="Muted"
+    )
 
     if not role:
 
-        role = await ctx.guild.create_role(name="Muted")
+        role = await ctx.guild.create_role(
+            name="Muted"
+        )
 
         for channel in ctx.guild.channels:
+
             await channel.set_permissions(
                 role,
                 send_messages=False,
@@ -292,26 +385,13 @@ async def mute(ctx, member: discord.Member):
     embed = discord.Embed(
         title="🔇 Mute effectué",
         description=(
-            f"👤 **Membre :** {member.mention}\n"
-            f"👮 **Staff :** {ctx.author.mention}"
+            f"👤 Membre : {member.mention}\n"
+            f"👮 Staff : {ctx.author.mention}"
         ),
         color=discord.Color.red()
     )
 
     await ctx.send(embed=embed)
-
-    try:
-        await member.send(
-            f"""
-🔇 Vous avez été mute sur le serveur : {ctx.guild.name}
-
-👮 Staff : {ctx.author}
-
-Si vous pensez que c'est une erreur, merci de venir en MP avec : theo_msc
-"""
-        )
-    except:
-        pass
 
 # ==================================================
 # UNMUTE
@@ -320,14 +400,17 @@ Si vous pensez que c'est une erreur, merci de venir en MP avec : theo_msc
 @commands.has_permissions(manage_roles=True)
 async def unmute(ctx, member: discord.Member):
 
-    role = discord.utils.get(ctx.guild.roles, name="Muted")
+    role = discord.utils.get(
+        ctx.guild.roles,
+        name="Muted"
+    )
 
     if role and role in member.roles:
         await member.remove_roles(role)
 
     embed = discord.Embed(
         title="🔊 Unmute effectué",
-        description=f"{member.mention} peut reparler",
+        description=f"{member.mention} peut reparler.",
         color=discord.Color.green()
     )
 
@@ -338,15 +421,25 @@ async def unmute(ctx, member: discord.Member):
 # ==================================================
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def tempmute(ctx, member: discord.Member, time: int):
+async def tempmute(
+    ctx,
+    member: discord.Member,
+    time: int
+):
 
-    role = discord.utils.get(ctx.guild.roles, name="Muted")
+    role = discord.utils.get(
+        ctx.guild.roles,
+        name="Muted"
+    )
 
     if not role:
 
-        role = await ctx.guild.create_role(name="Muted")
+        role = await ctx.guild.create_role(
+            name="Muted"
+        )
 
         for channel in ctx.guild.channels:
+
             await channel.set_permissions(
                 role,
                 send_messages=False,
@@ -358,28 +451,14 @@ async def tempmute(ctx, member: discord.Member, time: int):
     embed = discord.Embed(
         title="⏳ TempMute effectué",
         description=(
-            f"👤 **Membre :** {member.mention}\n"
-            f"⏱️ **Temps :** {time} secondes\n"
-            f"👮 **Staff :** {ctx.author.mention}"
+            f"👤 Membre : {member.mention}\n"
+            f"⏱️ Temps : {time} secondes\n"
+            f"👮 Staff : {ctx.author.mention}"
         ),
         color=discord.Color.orange()
     )
 
     await ctx.send(embed=embed)
-
-    try:
-        await member.send(
-            f"""
-⏳ Vous avez été tempmute sur le serveur : {ctx.guild.name}
-
-👮 Staff : {ctx.author}
-⏱️ Temps : {time} secondes
-
-Si vous pensez que c'est une erreur, merci de venir en MP avec : theo_msc
-"""
-        )
-    except:
-        pass
 
     await asyncio.sleep(time)
 
@@ -387,27 +466,84 @@ Si vous pensez que c'est une erreur, merci de venir en MP avec : theo_msc
         await member.remove_roles(role)
 
 # ==================================================
-# USERINFO
+# STAFFSTATS
 # ==================================================
 @bot.command()
-async def userinfo(ctx, member: discord.Member = None):
+async def staffstats(
+    ctx,
+    member: discord.Member = None
+):
 
     if member is None:
         member = ctx.author
 
-    roles = [role.mention for role in member.roles if role.name != "@everyone"]
+    stats = staff_stats[member.id]
+
+    embed = discord.Embed(
+        title=f"📊 Stats de {member}",
+        color=discord.Color.purple()
+    )
+
+    embed.add_field(
+        name="⚠️ Warns",
+        value=stats["warns"]
+    )
+
+    embed.add_field(
+        name="🔇 Mutes",
+        value=stats["mutes"]
+    )
+
+    embed.add_field(
+        name="🧹 Clears",
+        value=stats["clears"]
+    )
+
+    embed.add_field(
+        name="🔨 Bans",
+        value=stats["bans"]
+    )
+
+    await ctx.send(embed=embed)
+
+# ==================================================
+# USERINFO
+# ==================================================
+@bot.command()
+async def userinfo(
+    ctx,
+    member: discord.Member = None
+):
+
+    if member is None:
+        member = ctx.author
+
+    roles = [
+        role.mention
+        for role in member.roles
+        if role.name != "@everyone"
+    ]
 
     embed = discord.Embed(
         title=f"👤 Infos de {member}",
         color=discord.Color.blue()
     )
 
-    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_thumbnail(
+        url=member.display_avatar.url
+    )
 
-    embed.add_field(name="🆔 ID", value=member.id, inline=False)
-    embed.add_field(name="📅 Création", value=member.created_at.strftime("%d/%m/%Y"), inline=False)
-    embed.add_field(name="📥 Arrivée", value=member.joined_at.strftime("%d/%m/%Y"), inline=False)
-    embed.add_field(name="🎭 Rôles", value=", ".join(roles) if roles else "Aucun", inline=False)
+    embed.add_field(
+        name="🆔 ID",
+        value=member.id,
+        inline=False
+    )
+
+    embed.add_field(
+        name="🎭 Rôles",
+        value=", ".join(roles),
+        inline=False
+    )
 
     await ctx.send(embed=embed)
 
@@ -424,43 +560,32 @@ async def serverinfo(ctx):
         color=discord.Color.blue()
     )
 
-    if guild.icon:
-        embed.set_thumbnail(url=guild.icon.url)
-
-    embed.add_field(name="👑 Owner", value=guild.owner.mention, inline=False)
-    embed.add_field(name="👥 Membres", value=guild.member_count, inline=False)
-    embed.add_field(name="💬 Salons", value=len(guild.channels), inline=False)
-    embed.add_field(name="🚀 Boosts", value=guild.premium_subscription_count, inline=False)
-
-    await ctx.send(embed=embed)
-
-# ==================================================
-# STAFFSTATS
-# ==================================================
-@bot.command()
-async def staffstats(ctx, member: discord.Member = None):
-
-    if member is None:
-        member = ctx.author
-
-    stats = staff_stats[member.id]
-
-    embed = discord.Embed(
-        title=f"📊 Stats de {member}",
-        color=discord.Color.purple()
+    embed.add_field(
+        name="👥 Membres",
+        value=guild.member_count
     )
 
-    embed.add_field(name="⚠️ Warns", value=stats["warns"])
-    embed.add_field(name="🔇 Mutes", value=stats["mutes"])
-    embed.add_field(name="🧹 Clears", value=stats["clears"])
-    embed.add_field(name="🔨 Bans", value=stats["bans"])
+    embed.add_field(
+        name="💬 Salons",
+        value=len(guild.channels)
+    )
+
+    embed.add_field(
+        name="🚀 Boosts",
+        value=guild.premium_subscription_count
+    )
 
     await ctx.send(embed=embed)
 
 # ==================================================
-# RANK FUNCTION
+# RANK SYSTEM
 # ==================================================
-async def rank_member(ctx, member, role_id, role_name):
+async def rank_member(
+    ctx,
+    member,
+    role_id,
+    role_name
+):
 
     await remove_all_staff_roles(member)
 
@@ -477,40 +602,32 @@ async def rank_member(ctx, member, role_id, role_name):
     embed = discord.Embed(
         title="📌 Promotion Staff",
         description=(
-            f"👤 **Membre :** {member.mention}\n"
-            f"🏆 **Nouveau grade :** {role_name}\n"
-            f"👮 **Par :** {ctx.author.mention}"
+            f"👤 Membre : {member.mention}\n"
+            f"🏆 Nouveau grade : {role_name}\n"
+            f"👮 Par : {ctx.author.mention}"
         ),
         color=discord.Color.blue()
     )
 
     await ctx.send(embed=embed)
 
-# ==================================================
-# RANKS
-# ==================================================
 @bot.command(name="rank-t")
-@commands.has_permissions(administrator=True)
 async def rank_t(ctx, member: discord.Member):
     await rank_member(ctx, member, ROLE_T, "Modo Test")
 
 @bot.command(name="rank-c")
-@commands.has_permissions(administrator=True)
 async def rank_c(ctx, member: discord.Member):
     await rank_member(ctx, member, ROLE_C, "Modo Confirmé")
 
 @bot.command(name="rank-plus")
-@commands.has_permissions(administrator=True)
 async def rank_plus(ctx, member: discord.Member):
     await rank_member(ctx, member, ROLE_PLUS, "Modo +")
 
 @bot.command(name="rank-s")
-@commands.has_permissions(administrator=True)
 async def rank_s(ctx, member: discord.Member):
     await rank_member(ctx, member, ROLE_SENIOR, "Modo Senior")
 
 @bot.command(name="rank-admin")
-@commands.has_permissions(administrator=True)
 async def rank_admin(ctx, member: discord.Member):
     await rank_member(ctx, member, ROLE_ADMIN, "Admin")
 
@@ -518,23 +635,188 @@ async def rank_admin(ctx, member: discord.Member):
 # DERANK
 # ==================================================
 @bot.command()
-@commands.has_permissions(administrator=True)
 async def derank(ctx, member: discord.Member):
 
     await remove_all_staff_roles(member)
 
-    staff_role = ctx.guild.get_role(ROLE_STAFF)
+    staff_role = ctx.guild.get_role(
+        ROLE_STAFF
+    )
 
     if staff_role and staff_role in member.roles:
         await member.remove_roles(staff_role)
 
     embed = discord.Embed(
         title="⬇️ Derank effectué",
-        description=f"{member.mention} a été derank",
+        description=f"{member.mention} a été derank.",
         color=discord.Color.red()
     )
 
     await ctx.send(embed=embed)
+
+# ==================================================
+# ADD USER
+# ==================================================
+@bot.command()
+async def add(ctx, member: discord.Member):
+
+    await ctx.channel.set_permissions(
+        member,
+        view_channel=True,
+        send_messages=True
+    )
+
+    await ctx.send(
+        f"➕ {member.mention} ajouté au ticket"
+    )
+
+# ==================================================
+# DEL USER
+# ==================================================
+@bot.command(name="del")
+async def deluser(ctx, member: discord.Member):
+
+    await ctx.channel.set_permissions(
+        member,
+        overwrite=None
+    )
+
+    await ctx.send(
+        f"➖ {member.mention} retiré du ticket"
+    )
+
+# ==================================================
+# RENAME
+# ==================================================
+@bot.command()
+async def rename(ctx, *, name):
+
+    await ctx.channel.edit(name=name)
+
+    await ctx.send(
+        f"✏️ Ticket renommé en {name}"
+    )
+
+# ==================================================
+# CLOSE
+# ==================================================
+@bot.command()
+async def close(ctx):
+
+    def check(m):
+        return (
+            m.author == ctx.author
+            and m.channel == ctx.channel
+        )
+
+    await ctx.send(
+        "📋 La candidature est-elle :\n\n"
+        "1️⃣ Acceptée\n"
+        "2️⃣ Refusée\n\n"
+        "Réponds avec 1 ou 2"
+    )
+
+    try:
+
+        reply = await bot.wait_for(
+            "message",
+            timeout=60,
+            check=check
+        )
+
+    except:
+        return await ctx.send(
+            "❌ Temps écoulé"
+        )
+
+    if reply.content == "1":
+
+        status = "✅ ACCEPTÉE"
+
+        dm_message = (
+            "🎉 Bonjour,\n\n"
+            "Votre candidature staff a été ACCEPTÉE.\n\n"
+            "Bienvenue dans le staff !! 👮✨\n\n"
+            f"👮 Gérée par : {ctx.author}"
+        )
+
+    elif reply.content == "2":
+
+        status = "❌ REFUSÉE"
+
+        dm_message = (
+            "📋 Bonjour,\n\n"
+            "Votre candidature staff a été REFUSÉE.\n\n"
+            "Merci quand même d'avoir tenté votre chance ❤️\n\n"
+            f"👮 Gérée par : {ctx.author}"
+        )
+
+    else:
+
+        return await ctx.send(
+            "❌ Choix invalide"
+        )
+
+    user = None
+
+    for member in ctx.channel.members:
+
+        if member.bot:
+            continue
+
+        if ROLE_GERANT_STAFF in [
+            r.id for r in member.roles
+        ]:
+            continue
+
+        user = member
+        break
+
+    if user:
+
+        try:
+            await user.send(dm_message)
+        except:
+            pass
+
+    archive = bot.get_channel(
+        ARCHIVES_CHANNEL
+    )
+
+    embed = discord.Embed(
+        title="📋 Candidature fermée",
+        description=(
+            f"👤 Candidat : "
+            f"{user.mention if user else 'Inconnu'}\n\n"
+
+            f"📌 Statut : {status}\n"
+            f"👮 Staff responsable : "
+            f"{ctx.author.mention}\n\n"
+
+            f"💬 Message envoyé au candidat :\n"
+
+            f"“{'Bienvenue dans le staff !! 👮✨' if reply.content == '1' else 'Merci quand même d’avoir tenté votre chance ❤️'}”\n\n"
+
+            f"🕒 Date : {datetime.utcnow()}"
+        ),
+        color=discord.Color.orange()
+    )
+
+    if archive:
+        await archive.send(embed=embed)
+
+    category = bot.get_channel(
+        LOGS_CATEGORY
+    )
+
+    await ctx.channel.edit(
+        category=category,
+        sync_permissions=True
+    )
+
+    await ctx.send(
+        "📂 Ticket déplacé dans recrutements logs"
+    )
 
 # ==================================================
 # HELP STAFF
@@ -544,24 +826,28 @@ async def helpstaff(ctx):
 
     embed = discord.Embed(
         title="👮 Commandes Staff",
-        description="""
-⚠️ +warn
-📋 +sanctions
-🧹 +clear_sanctions
-🧹 +clear
-🔇 +mute
-🔊 +unmute
-⏳ +tempmute
-📊 +staffstats
-👤 +userinfo
-🌍 +serverinfo
-📌 +rank-t
-📌 +rank-c
-📌 +rank-plus
-📌 +rank-s
-📌 +rank-admin
-⬇️ +derank
-""",
+        description=(
+            "⚠️ +warn\n"
+            "📋 +sanctions\n"
+            "🧹 +clear_sanctions\n"
+            "🧹 +clear\n"
+            "🔇 +mute\n"
+            "🔊 +unmute\n"
+            "⏳ +tempmute\n"
+            "📊 +staffstats\n"
+            "👤 +userinfo\n"
+            "🌍 +serverinfo\n"
+            "📌 +rank-t\n"
+            "📌 +rank-c\n"
+            "📌 +rank-plus\n"
+            "📌 +rank-s\n"
+            "📌 +rank-admin\n"
+            "⬇️ +derank\n"
+            "➕ +add\n"
+            "➖ +del\n"
+            "✏️ +rename\n"
+            "🔒 +close"
+        ),
         color=discord.Color.green()
     )
 
@@ -575,7 +861,4 @@ token = os.getenv("DISCORD_TOKEN")
 if token is None:
     print("TOKEN MANQUANT ❌")
 
-try:
-    bot.run(token)
-except Exception as e:
-    print(e)
+bot.run(token)
