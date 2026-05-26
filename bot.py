@@ -13,9 +13,6 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="+", intents=intents)
 
-# On retire le help de base pour mettre notre propre menu ultra stylé
-bot.remove_command("help")
-
 # ---------------- TOKEN ----------------
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -46,24 +43,28 @@ async def on_ready():
 
     channel = bot.get_channel(TICKET_PANEL_CHANNEL)
     if channel:
-        await channel.purge(limit=10)
+        try:
+            # ENLEVÉ : Plus de purge automatique ici pour éviter le crash de l'hébergeur
+            
+            embed_panel = discord.Embed(
+                title="🪐 RECRUTEMENT DE L'ÉQUIPE STAFF",
+                description=(
+                    "Vous souhaitez investir votre temps et participer à l'évolution du serveur ? "
+                    "C'est ici que ça se passe !\n\n"
+                    f"⚡ **Session gérée par :** <@{GERANT_STAFF_ID}>\n\n"
+                    "➡️ **Pour postuler :** Cliquez simplement sur le bouton ci-dessous.\n"
+                    "Un salon privé va s'ouvrir pour votre entretien."
+                ),
+                color=discord.Color.dark_purple()
+            )
+            if bot.user.display_avatar:
+                embed_panel.set_thumbnail(url=bot.user.display_avatar.url)
+            embed_panel.set_footer(text="Merci de ne pas ouvrir de ticket inutilement • Tout abus sera sanctionné.")
 
-        embed_panel = discord.Embed(
-            title="🪐 RECRUTEMENT DE L'ÉQUIPE STAFF",
-            description=(
-                "Vous souhaitez investir votre temps et participer à l'évolution du serveur ? "
-                "C'est ici que ça se passe !\n\n"
-                f"⚡ **Session gérée par :** <@{GERANT_STAFF_ID}>\n\n"
-                "➡️ **Pour postuler :** Cliquez simplement sur le bouton ci-dessous.\n"
-                "Un salon privé va s'ouvrir pour votre entretien."
-            ),
-            color=discord.Color.dark_purple()
-        )
-        if bot.user.display_avatar:
-            embed_panel.set_thumbnail(url=bot.user.display_avatar.url)
-        embed_panel.set_footer(text="Merci de ne pas ouvrir de ticket inutilement • Tout abus sera sanctionné.")
-
-        await channel.send(embed=embed_panel, view=TicketView())
+            await channel.send(embed=embed_panel, view=TicketView())
+            print("✅ Panel envoyé sur Discord !")
+        except Exception as e:
+            print(f"❌ Erreur lors de l'envoi du panel : {e}")
 
     bot.add_view(TicketView())
 
@@ -78,7 +79,7 @@ async def send_log(guild, message):
     except Exception as e:
         print(f"Erreur d'envoi du log : {e}")
 
-# ---------------- HELP STAFF (NOUVEAU) ----------------
+# ---------------- HELP STAFF ----------------
 @bot.command(name="helpstaff")
 @commands.has_role(ROLE_STAFF)
 async def helpstaff(ctx):
@@ -145,7 +146,6 @@ async def helpstaff(ctx):
     
     await ctx.send(embed=embed)
 
-# En cas d'erreur si la personne n'est pas Staff
 @helpstaff.error
 async def helpstaff_error(ctx, error):
     if isinstance(error, commands.MissingRole):
@@ -179,7 +179,7 @@ async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
     db_sanctions[member.id].append(reason)
     
     embed = discord.Embed(
-        title="⚠️ ALERT / DOSSIER MISE À JOUR",
+        title="⚠️ ALERT / DOSSIER MISE À ZONE",
         description=f"Un avertissement officiel a été attribué à {member.mention}.",
         color=discord.Color.from_rgb(241, 196, 15)
     )
@@ -236,7 +236,7 @@ async def kick(ctx, member: discord.Member, *, reason="Aucune raison"):
         await ctx.send(embed=embed)
         await send_log(ctx.guild, f"☄️ **KICK** | {member} | {reason} | Par : {ctx.author}")
     except:
-        embed = discord.Embed(description="🛑 **Erreur** ➔ Autorisations insuffisantes pour éjecter cette cible.", color=discord.Color.red())
+        embed = discord.Embed(description="🛑 **Erreur** ➔ Autorisations insuffisantes.", color=discord.Color.red())
         await ctx.send(embed=embed)
 
 # ---------------- BAN ----------------
@@ -273,7 +273,7 @@ async def unban(ctx, user_id: int):
         await ctx.send(embed=embed)
         await send_log(ctx.guild, f"🧬 **UNBAN** | {user} | Par : {ctx.author}")
     except:
-        embed = discord.Embed(description="🛑 **Erreur** ➔ ID introuvable dans la base des bannissements.", color=discord.Color.red())
+        embed = discord.Embed(description="🛑 **Erreur** ➔ ID introuvable.", color=discord.Color.red())
         await ctx.send(embed=embed)
 
 # ---------------- MUTE ----------------
@@ -351,7 +351,7 @@ async def rank_c(ctx, member: discord.Member):
     role, staff = ctx.guild.get_role(ROLE_C), ctx.guild.get_role(ROLE_STAFF)
     if role: await member.add_roles(role)
     if staff: await member.add_roles(staff)
-    embed = discord.Embed(description=f"v **Promotion** ➔ {member.mention} est titularisé au rang de **Modo Confirmé**.", color=discord.Color.blue())
+    embed = discord.Embed(description=f"💎 **Promotion** ➔ {member.mention} est titularisé au rang de **Modo Confirmé**.", color=discord.Color.blue())
     await ctx.send(embed=embed)
 
 @bot.command(name="rank-plus")
@@ -470,5 +470,4 @@ class CloseTicketModal(discord.ui.Modal):
         )
         embed_mp.add_field(name="📋 Statut", value=f"**{self.status}**", inline=True)
         embed_mp.add_field(name="👮 Traité par", value=f"{interaction.user.mention}", inline=True)
-        embed_mp.add_field(name="📅 Date", value=current_time, inline=True)
-        embed_mp.add_f
+        embed_mp.add_field(name
