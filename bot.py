@@ -453,4 +453,3 @@ class CloseTicketModal(discord.ui.Modal):
             embed_trans.add_field(name="Salon", value=self.channel_name, inline=True)
             embed_trans.add_field(name="Candidat", value=self.member.mention, inline=True)
             embed_trans.add
-        
