@@ -2,9 +2,9 @@ import discord
 from discord.ext import commands
 import asyncio
 import json
-import os
 from collections import defaultdict
 from datetime import datetime
+import os
 
 # =========================
 # BOT SETUP
@@ -20,11 +20,28 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 # =========================
 
 GERANT_STAFF_ID = 968588191055642624
+
 LOG_CHANNEL_ID = 1508595464168013965
 
-TICKET_CAT = 1504792910892109935
-TICKET_PANEL = 1504792916772786298
-ARCHIVE = 1507694850282100000
+TICKET_PANEL_CHANNEL = 1504792916772786298
+TICKET_CATEGORY_ID = 1504792910892109935
+ARCHIVE_CHANNEL_ID = 1507694850282100000
+
+# =========================
+# ROLES STAFF
+# =========================
+
+ROLE_IDS = {
+    "t": 1504792771977023591,
+    "c": 1504792768088903931,
+    "plus": 1504792764448116776,
+    "s": 1504792759679057951,
+    "admin": 1504792748098715660
+}
+
+def get_role(guild, key):
+    role_id = ROLE_IDS.get(key)
+    return guild.get_role(role_id)
 
 # =========================
 # SANCTIONS SYSTEM
@@ -75,14 +92,14 @@ async def dm(user, msg):
         pass
 
 # =========================
-# CLEAR (CONFIRM 50+)
+# CLEAR
 # =========================
 
 @bot.command()
 async def clear(ctx, amount: int):
 
     if amount >= 50:
-        await ctx.send("⚠️ Supprimer 50+ messages ? (oui/non)")
+        await ctx.send("⚠️ Confirmer suppression (oui/non)")
 
         def check(m):
             return m.author == ctx.author and m.channel == ctx.channel
@@ -101,17 +118,27 @@ async def clear(ctx, amount: int):
 # =========================
 
 @bot.command()
+async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
+
+    sanctions[str(member.id)].append(reason)
+    save()
+
+    await dm(member, f"⚠️ Warn : {reason}")
+
+    await log(ctx.guild, "⚠️ WARN", f"{ctx.author.mention} → {member.mention} | {reason}", discord.Color.orange(), "⚠️")
+
+@bot.command()
 async def sanctions(ctx, member: discord.Member):
 
     data = sanctions.get(str(member.id), [])
 
     embed = discord.Embed(title="📋 SANCTIONS", color=discord.Color.orange())
-    embed.add_field(name="👤 Membre", value=member.mention, inline=False)
+    embed.add_field(name="Membre", value=member.mention, inline=False)
 
     if not data:
-        embed.add_field(name="📌", value="Aucune sanction", inline=False)
+        embed.add_field(name="Aucune", value="Aucune sanction")
     else:
-        embed.add_field(name="📌", value="\n".join(data), inline=False)
+        embed.add_field(name="Liste", value="\n".join(data))
 
     await ctx.send(embed=embed)
 
@@ -124,46 +151,25 @@ async def clear_sanctions(ctx, member: discord.Member):
     await ctx.send(f"🧹 sanctions supprimées {member.mention}")
 
 # =========================
-# WARN
-# =========================
-
-@bot.command()
-async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
-
-    sanctions[str(member.id)].append(reason)
-    save()
-
-    await dm(member, f"⚠️ Warn : {reason}")
-
-    await log(ctx.guild, "⚠️ WARN", f"{member.mention} | {reason}", discord.Color.orange(), "⚠️")
-
-    await ctx.send(f"⚠️ {member.mention}")
-
-# =========================
-# BAN / UNBAN
+# MODERATION
 # =========================
 
 @bot.command()
 async def ban(ctx, member: discord.Member, *, reason="Aucune raison"):
 
-    await dm(member, f"🔨 Ban : {reason}")
-
     await member.ban(reason=reason)
 
-    await log(ctx.guild, "🔨 BAN", f"{member.mention}", discord.Color.red(), "🔨")
+    await dm(member, f"🔨 Ban : {reason}")
+
+    await log(ctx.guild, "🔨 BAN", f"{ctx.author.mention} → {member.mention}", discord.Color.red(), "🔨")
 
 @bot.command()
 async def unban(ctx, user_id: int):
 
     user = await bot.fetch_user(user_id)
-
     await ctx.guild.unban(user)
 
-    await log(ctx.guild, "♻️ UNBAN", f"{user}", discord.Color.green(), "♻️")
-
-# =========================
-# MUTE / TEMPMUTE
-# =========================
+    await log(ctx.guild, "♻️ UNBAN", str(user), discord.Color.green(), "♻️")
 
 @bot.command()
 async def mute(ctx, member: discord.Member):
@@ -189,35 +195,51 @@ async def tempmute(ctx, member: discord.Member, time: int):
 
     await dm(member, f"⏳ tempmute {time}s")
 
-    await log(ctx.guild, "⏳ TEMPMUTE", f"{member.mention} | {time}s", discord.Color.blurple(), "⏳")
-
     await asyncio.sleep(time)
 
     await member.remove_roles(role)
 
 # =========================
-# STAFF RANKS
+# RANK SYSTEM
 # =========================
 
 @bot.command()
 async def rank_t(ctx, member: discord.Member):
-    role = discord.utils.get(ctx.guild.roles, name="Modo Test")
-    if role:
-        await member.add_roles(role)
+    await member.add_roles(get_role(ctx.guild, "t"))
+    await ctx.send(f"🟢 {member.mention} → Modo Test")
 
-    await log(ctx.guild, "👤 RANK-T", f"{member.mention}", discord.Color.blue(), "👤")
+@bot.command()
+async def rank_c(ctx, member: discord.Member):
+    await member.add_roles(get_role(ctx.guild, "c"))
+    await ctx.send(f"🟡 {member.mention} → Confirmé")
+
+@bot.command()
+async def rank_plus(ctx, member: discord.Member):
+    await member.add_roles(get_role(ctx.guild, "plus"))
+    await ctx.send(f"🔵 {member.mention} → Modo +")
+
+@bot.command()
+async def rank_s(ctx, member: discord.Member):
+    await member.add_roles(get_role(ctx.guild, "s"))
+    await ctx.send(f"🔴 {member.mention} → Senior")
+
+@bot.command()
+async def rank_admin(ctx, member: discord.Member):
+    await member.add_roles(get_role(ctx.guild, "admin"))
+    await ctx.send(f"👑 {member.mention} → Admin")
 
 @bot.command()
 async def derank(ctx, member: discord.Member):
 
-    for r in member.roles:
-        if r.name != "@everyone":
-            await member.remove_roles(r)
+    for key in ROLE_IDS:
+        role = get_role(ctx.guild, key)
+        if role:
+            await member.remove_roles(role)
 
-    await log(ctx.guild, "⬇️ DERANK", f"{member.mention}", discord.Color.orange(), "⬇️")
+    await ctx.send(f"⬇️ {member.mention} derank complet")
 
 # =========================
-# INFO COMMANDS
+# INFOS
 # =========================
 
 @bot.command()
@@ -226,42 +248,25 @@ async def ping(ctx):
 
 @bot.command()
 async def serverinfo(ctx):
-
     g = ctx.guild
 
-    embed = discord.Embed(title="📊 SERVER INFO", color=discord.Color.green())
-    embed.add_field(name="Owner", value=g.owner, inline=False)
-    embed.add_field(name="Members", value=g.member_count, inline=False)
-    embed.add_field(name="Created", value=g.created_at.strftime("%d/%m/%Y"), inline=False)
+    embed = discord.Embed(title="📊 SERVER INFO")
+    embed.add_field(name="Owner", value=g.owner)
+    embed.add_field(name="Members", value=g.member_count)
 
     await ctx.send(embed=embed)
 
 @bot.command()
 async def staffinfo(ctx, member: discord.Member):
 
-    embed = discord.Embed(title="👤 STAFF INFO", color=discord.Color.orange())
+    embed = discord.Embed(title="👤 STAFF INFO")
     embed.add_field(name="User", value=member.mention)
     embed.add_field(name="Roles", value=", ".join([r.name for r in member.roles]))
 
     await ctx.send(embed=embed)
 
-@bot.command()
-async def help_staff(ctx):
-
-    embed = discord.Embed(title="📘 HELP STAFF", color=discord.Color.blurple())
-
-    embed.add_field(name="+warn", value="⚠️ warn", inline=False)
-    embed.add_field(name="+ban", value="🔨 ban", inline=False)
-    embed.add_field(name="+mute", value="🔇 mute", inline=False)
-    embed.add_field(name="+tempmute", value="⏳ tempmute", inline=False)
-    embed.add_field(name="+clear", value="🧹 clear", inline=False)
-    embed.add_field(name="+sanctions", value="📋 sanctions", inline=False)
-    embed.add_field(name="+close", value="🎫 ticket", inline=False)
-
-    await ctx.send(embed=embed)
-
 # =========================
-# TICKET SYSTEM FIX (IMPORTANT)
+# TICKET SYSTEM
 # =========================
 
 class Ticket(discord.ui.View):
@@ -269,82 +274,68 @@ class Ticket(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="🎫 Ouvrir candidature", style=discord.ButtonStyle.green, custom_id="ticket")
+    @discord.ui.button(label="🎫 Ouvrir candidature", style=discord.ButtonStyle.green)
     async def open(self, interaction, button):
 
         user = interaction.user
         guild = interaction.guild
 
-        cat = guild.get_channel(TICKET_CAT)
+        cat = guild.get_channel(TICKET_CATEGORY_ID)
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            user: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            user: discord.PermissionOverwrite(view_channel=True)
         }
 
-        ch = await guild.create_text_channel(
-            name=f"candidature-{user.name}",
+        channel = await guild.create_text_channel(
+            name=f"ticket-{user.name}",
             category=cat,
             overwrites=overwrites
         )
 
-        await ch.send(f"<@{GERANT_STAFF_ID}>")
+        await channel.send(f"{user.mention} <@{GERANT_STAFF_ID}>")
 
         embed = discord.Embed(
-            title="📋 CANDIDATURE STAFF",
-            description="Remplis correctement ta candidature.",
+            title="📋 CANDIDATURE",
+            description="Remplis ton formulaire",
             color=discord.Color.purple()
         )
 
-        await ch.send(embed=embed)
+        await channel.send(embed=embed)
 
 # =========================
-# CLOSE (FULL FIX DELETE + LOG + DM)
+# CLOSE
 # =========================
 
 @bot.command()
 async def close(ctx):
 
-    await ctx.send("1️⃣ Accepté / 2️⃣ Refusé")
+    await ctx.send("1️⃣ accepté / 2️⃣ refusé")
 
     def check(m):
         return m.author == ctx.author and m.channel == ctx.channel
 
     msg = await bot.wait_for("message", check=check)
 
-    now = datetime.now().strftime("%H:%M:%S")
-
-    opener = ctx.channel.name.replace("candidature-", "")
+    user = ctx.channel.name
 
     if msg.content == "1":
         status = "ACCEPTÉ"
-        dm_msg = "🎉 accepté"
-        color = discord.Color.green()
     else:
         status = "REFUSÉ"
-        dm_msg = "❌ refusé"
-        color = discord.Color.red()
 
-    await dm(ctx.author, dm_msg)
-    await dm(await bot.fetch_user(GERANT_STAFF_ID), f"{status} | {opener}")
-
-    embed = discord.Embed(
-        title=f"📋 {status}",
-        color=color
-    )
-
-    embed.add_field(name="Membre", value=opener)
-    embed.add_field(name="Staff", value=ctx.author.mention)
-    embed.add_field(name="Heure", value=now)
-
-    logch = bot.get_channel(ARCHIVE)
-    if logch:
-        await logch.send(embed=embed)
+    await dm(ctx.author, status)
+    await log(ctx.guild, "🎫 CLOSE", f"{user} → {status}", discord.Color.blue(), "🎫")
 
     await ctx.channel.delete()
 
 # =========================
-# RUN
+# READY
 # =========================
+
+@bot.event
+async def on_ready():
+    print("BOT ONLINE")
+    bot.add_view(Ticket())
 
 bot.run(TOKEN)
