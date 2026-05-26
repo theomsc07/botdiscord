@@ -122,7 +122,7 @@ async def helpstaff(ctx):
             "`+rank-c @membre` ➔ Assigne le rôle Modo Confirmé\n"
             "`+rank-plus @membre` ➔ Assigne le rôle Modo +\n"
             "`+rank-s @membre` ➔ Assigne le rôle Senior\n"
-            "`+rank-admin @membre` ➔ Assigne le rôle Administrateur\n"
+            "`+rank-admin @membre` ➔ Assigne le rôle Administratur\n"
             "`+derank @membre` ➔ Destitue de l'intégralité des rôles staff"
         ),
         inline=False
@@ -426,48 +426,5 @@ class TicketView(discord.ui.View):
             title=f"👋 Bienvenue sur ta candidature, {user.name} !",
             description=(
                 f"Merci de l'intérêt que tu portes à **{guild.name}**.\n\n"
-                "**📌 Prochaines étapes :**\n"
-                "1. Présente-toi brièvement (âge, motivations, expériences).\n"
-                "2. Reste patient, un membre de la direction va s'occuper de toi.\n\n"
-                "📜 *Tout comportement inapproprié entraînera une sanction.*"
-            ),
-            color=discord.Color.purple(),
-            timestamp=datetime.now()
-        )
-        embed_welcome.add_field(name="👤 Candidat", value=user.mention, inline=True)
-        embed_welcome.add_field(name="👮 Responsable", value=f"<@{GERANT_STAFF_ID}>", inline=True)
-        embed_welcome.set_footer(text="Commandes Staff : +add | +del | +rename | +close")
-
-        await channel.send(content=f"{user.mention} 🔔 <@{GERANT_STAFF_ID}>", embed=embed_welcome)
-        await interaction.response.send_message(f"✅ Ticket de candidature créé : {channel.mention}", ephemeral=True)
-
-
-class CloseTicketModal(discord.ui.Modal):
-    def __init__(self, status: str, color: discord.Color, channel_name: str, member: discord.Member):
-        super().__init__(title=f"Traitement Candidature : {status}")
-        self.status = status
-        self.color = color
-        self.channel_name = channel_name
-        self.member = member
-
-        self.reason = discord.ui.TextInput(label="Motif / Raison principale", placeholder="Ex: Excellent profil...", max_length=100, required=True)
-        self.custom_msg = discord.ui.TextInput(label="Message personnalisé pour le candidat", style=discord.TextStyle.paragraph, placeholder="Écris ton message ici...", max_length=1000, required=True)
-
-        self.add_item(self.reason)
-        self.add_item(self.custom_msg)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        current_time = datetime.now().strftime("%d/%m/%Y à %H:%M")
-
-        embed_mp = discord.Embed(
-            title=f"📬 RÉSULTAT DE VOTRE CANDIDATURE : {self.status}",
-            description=f"Bonjour {self.member.mention},\nVotre candidature sur le serveur **{interaction.guild.name}** a été traitée.",
-            color=self.color,
-            timestamp=datetime.now()
-        )
+                "**📌 Prochain
         
-        embed_mp.add_field(name="📋 Statut", value=f"**{self.status}**", inline=True)
-        embed_mp.add_field(name="👮 Traité par", value=f"{interaction.user.mention}", inline=True)
-        embed_mp.add_field(name="📅 Date", value=current_time, inline=True)
-        embed_mp.add_field(name="📌 Motif", valu
