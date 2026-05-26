@@ -1,6 +1,5 @@
 # ==================================================
-# BOT STAFF COMPLET
-# Theo - Créateur du bot
+# BOT STAFF COMPLET - THEO
 # ==================================================
 
 import discord
@@ -8,6 +7,7 @@ from discord.ext import commands
 import asyncio
 import os
 import json
+import io
 from collections import defaultdict
 from datetime import datetime
 
@@ -27,39 +27,6 @@ bot = commands.Bot(
 # ==================================================
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-
-# ==================================================
-# SAVE SANCTIONS
-# ==================================================
-
-SANCTIONS_FILE = "sanctions.json"
-
-def load_sanctions():
-
-    if os.path.exists(SANCTIONS_FILE):
-
-        with open(SANCTIONS_FILE, "r") as f:
-
-            data = json.load(f)
-
-            return defaultdict(
-                list,
-                {int(k): v for k, v in data.items()}
-            )
-
-    return defaultdict(list)
-
-sanctions = load_sanctions()
-
-def save_sanctions():
-
-    with open(SANCTIONS_FILE, "w") as f:
-
-        json.dump(
-            dict(sanctions),
-            f,
-            indent=4
-        )
 
 # ==================================================
 # IDS
@@ -83,25 +50,45 @@ ROLE_ADMIN = 1504792748098715660
 TICKET_PANEL_CHANNEL = 1504792916772786298
 TICKET_CATEGORY = 1504792910892109935
 ARCHIVES_CHANNEL = 1507694850282094683
-LOGS_CATEGORY = 1507737677062213732
+
+# ==================================================
+# SANCTIONS SAVE
+# ==================================================
+
+SANCTIONS_FILE = "sanctions.json"
+
+def load_sanctions():
+
+    if os.path.exists(SANCTIONS_FILE):
+
+        with open(SANCTIONS_FILE, "r") as f:
+
+            data = json.load(f)
+
+            return defaultdict(
+                list,
+                {int(k): v for k, v in data.items()}
+            )
+
+    return defaultdict(list)
+
+sanctions_data = load_sanctions()
+
+def save_sanctions():
+
+    with open(SANCTIONS_FILE, "w") as f:
+
+        json.dump(
+            dict(sanctions_data),
+            f,
+            indent=4
+        )
 
 # ==================================================
 # ACTIVE TICKETS
 # ==================================================
 
 active_tickets = defaultdict(int)
-
-# ==================================================
-# STAFF STATS
-# ==================================================
-
-staff_stats = defaultdict(lambda: {
-
-    "warns": 0,
-    "mutes": 0,
-    "clears": 0,
-    "bans": 0
-})
 
 # ==================================================
 # LOGS
@@ -113,7 +100,6 @@ async def send_log(
     title,
     description,
     color=discord.Color.red()
-
 ):
 
     channel = guild.get_channel(
@@ -157,7 +143,7 @@ async def remove_staff_roles(member):
             await member.remove_roles(role)
 
 # ==================================================
-# TICKET VIEW
+# TICKET BUTTON
 # ==================================================
 
 class TicketView(discord.ui.View):
@@ -170,7 +156,7 @@ class TicketView(discord.ui.View):
 
         label="🎫 Ouvrir une candidature",
         style=discord.ButtonStyle.green,
-        custom_id="open_ticket_button"
+        custom_id="open_ticket"
     )
 
     async def open_ticket(
@@ -218,7 +204,7 @@ class TicketView(discord.ui.View):
                 )
         }
 
-        ticket = await guild.create_text_channel(
+        channel = await guild.create_text_channel(
 
             name=f"candidature-{user.name}",
 
@@ -231,18 +217,18 @@ class TicketView(discord.ui.View):
 
         embed = discord.Embed(
 
-            title="👋 Candidature Staff",
+            title="📋 Candidature Staff",
 
             description=(
                 "Merci d'avoir ouvert une candidature.\n\n"
-                "📝 Merci de remplir correctement votre candidature.\n\n"
+                "📝 Remplissez votre candidature.\n\n"
                 "👮 Le rôle Gérant Staff a été prévenu."
             ),
 
             color=discord.Color.blurple()
         )
 
-        await ticket.send(
+        await channel.send(
 
             content=f"<@&{ROLE_GERANT_STAFF}>",
 
@@ -251,7 +237,7 @@ class TicketView(discord.ui.View):
 
         await interaction.response.send_message(
 
-            f"✅ Ticket créé : {ticket.mention}",
+            f"✅ Ticket créé : {channel.mention}",
 
             ephemeral=True
         )
@@ -281,7 +267,7 @@ async def on_ready():
                 "👮 Les candidatures staff sont ouvertes.\n\n"
                 "Clique sur le bouton ci-dessous "
                 "pour ouvrir une candidature.\n\n"
-                "📌 Géré uniquement par le rôle Gérant Staff."
+                "📌 Géré par le Gérant Staff."
             ),
 
             color=discord.Color.purple()
@@ -329,11 +315,9 @@ async def warn(
     reason="Aucune raison"
 ):
 
-    sanctions[member.id].append(reason)
+    sanctions_data[member.id].append(reason)
 
     save_sanctions()
-
-    staff_stats[ctx.author.id]["warns"] += 1
 
     embed = discord.Embed(
 
@@ -365,40 +349,47 @@ async def warn(
         discord.Color.orange()
     )
 
+    try:
+
+        dm = discord.Embed(
+
+            title="⚠️ Vous avez reçu un warn",
+
+            description=(
+                f"🌍 Serveur : {ctx.guild.name}\n"
+                f"👮 Staff : {ctx.author}\n"
+                f"📌 Raison : {reason}\n\n"
+                f"📩 Contact : theo_msc"
+            ),
+
+            color=discord.Color.orange()
+        )
+
+        await member.send(embed=dm)
+
+    except:
+        pass
+
 # ==================================================
 # SANCTIONS
 # ==================================================
 
-@bot.command(name="sanctions")
-
-async def sanctions_cmd(
-
+@bot.command()
+async def sanctions(
     ctx,
     member: discord.Member
 ):
 
-    user_sanctions = sanctions.get(member.id)
+    user_sanctions = sanctions_data.get(member.id)
 
     if not user_sanctions:
 
-        embed = discord.Embed(
-
-            title="✅ Aucune sanction",
-
-            description=(
-                f"{member.mention} "
-                "n'a aucune sanction."
-            ),
-
-            color=discord.Color.green()
+        return await ctx.send(
+            f"✅ {member.mention} n'a aucune sanction."
         )
 
-        return await ctx.send(embed=embed)
-
     msg = "\n".join([
-
         f"{i+1}. {s}"
-
         for i, s in enumerate(user_sanctions)
     ])
 
@@ -418,73 +409,31 @@ async def sanctions_cmd(
 # ==================================================
 
 @bot.command()
-@commands.has_permissions(administrator=True)
-
 async def clear_sanctions(
-
     ctx,
     member: discord.Member
 ):
 
-    sanctions[member.id] = []
+    sanctions_data[member.id] = []
 
     save_sanctions()
 
-    embed = discord.Embed(
-
-        title="🧹 Sanctions supprimées",
-
-        description=(
-            f"Les sanctions de "
-            f"{member.mention} "
-            f"ont été supprimées."
-        ),
-
-        color=discord.Color.green()
+    await ctx.send(
+        f"🧹 Sanctions supprimées pour {member.mention}"
     )
-
-    await ctx.send(embed=embed)
-
-# ==================================================
-# CLEAR
-# ==================================================
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-
-async def clear(ctx, amount: int):
-
-    await ctx.channel.purge(
-        limit=amount + 1
-    )
-
-    staff_stats[ctx.author.id]["clears"] += 1
-
-    msg = await ctx.send(
-        f"🧹 {amount} messages supprimés."
-    )
-
-    await asyncio.sleep(5)
-
-    await msg.delete()
 
 # ==================================================
 # MUTE
 # ==================================================
 
 @bot.command()
-@commands.has_permissions(manage_roles=True)
-
 async def mute(
-
     ctx,
     member: discord.Member
 ):
 
     role = discord.utils.get(
-
         ctx.guild.roles,
-
         name="Muted"
     )
 
@@ -497,25 +446,20 @@ async def mute(
         for channel in ctx.guild.channels:
 
             await channel.set_permissions(
-
                 role,
-
                 send_messages=False,
-
                 speak=False
             )
 
     await member.add_roles(role)
-
-    staff_stats[ctx.author.id]["mutes"] += 1
 
     embed = discord.Embed(
 
         title="🔇 Mute effectué",
 
         description=(
-            f"👤 Membre : {member.mention}\n"
-            f"👮 Staff : {ctx.author.mention}"
+            f"👤 {member.mention}\n"
+            f"👮 {ctx.author.mention}"
         ),
 
         color=discord.Color.red()
@@ -523,59 +467,39 @@ async def mute(
 
     await ctx.send(embed=embed)
 
-# ==================================================
-# UNMUTE
-# ==================================================
+    try:
 
-@bot.command()
-@commands.has_permissions(manage_roles=True)
+        dm = discord.Embed(
 
-async def unmute(
+            title="🔇 Vous avez été mute",
 
-    ctx,
-    member: discord.Member
-):
+            description=(
+                f"🌍 Serveur : {ctx.guild.name}\n"
+                f"👮 Staff : {ctx.author}\n\n"
+                f"📩 Contact : theo_msc"
+            ),
 
-    role = discord.utils.get(
+            color=discord.Color.red()
+        )
 
-        ctx.guild.roles,
+        await member.send(embed=dm)
 
-        name="Muted"
-    )
-
-    if role and role in member.roles:
-
-        await member.remove_roles(role)
-
-    embed = discord.Embed(
-
-        title="🔊 Unmute effectué",
-
-        description=f"{member.mention} a été unmute.",
-
-        color=discord.Color.green()
-    )
-
-    await ctx.send(embed=embed)
+    except:
+        pass
 
 # ==================================================
 # TEMPMUTE
 # ==================================================
 
 @bot.command()
-@commands.has_permissions(manage_roles=True)
-
 async def tempmute(
-
     ctx,
     member: discord.Member,
     time: int
 ):
 
     role = discord.utils.get(
-
         ctx.guild.roles,
-
         name="Muted"
     )
 
@@ -588,11 +512,8 @@ async def tempmute(
         for channel in ctx.guild.channels:
 
             await channel.set_permissions(
-
                 role,
-
                 send_messages=False,
-
                 speak=False
             )
 
@@ -600,18 +521,38 @@ async def tempmute(
 
     embed = discord.Embed(
 
-        title="⏳ TempMute effectué",
+        title="⏳ TempMute",
 
         description=(
-            f"👤 Membre : {member.mention}\n"
-            f"⏱️ Temps : {time} secondes\n"
-            f"👮 Staff : {ctx.author.mention}"
+            f"👤 {member.mention}\n"
+            f"⏱️ {time} secondes"
         ),
 
         color=discord.Color.orange()
     )
 
     await ctx.send(embed=embed)
+
+    try:
+
+        dm = discord.Embed(
+
+            title="⏳ Vous avez été TempMute",
+
+            description=(
+                f"🌍 Serveur : {ctx.guild.name}\n"
+                f"⏱️ Temps : {time} secondes\n"
+                f"👮 Staff : {ctx.author}\n\n"
+                f"📩 Contact : theo_msc"
+            ),
+
+            color=discord.Color.orange()
+        )
+
+        await member.send(embed=dm)
+
+    except:
+        pass
 
     await asyncio.sleep(time)
 
@@ -620,86 +561,16 @@ async def tempmute(
         await member.remove_roles(role)
 
 # ==================================================
-# ADD USER
+# CLOSE TICKET
 # ==================================================
 
 @bot.command()
-
-async def add(
-
-    ctx,
-    member: discord.Member
-):
-
-    await ctx.channel.set_permissions(
-
-        member,
-
-        view_channel=True,
-
-        send_messages=True
-    )
-
-    await ctx.send(
-        f"➕ {member.mention} ajouté au ticket."
-    )
-
-# ==================================================
-# DEL USER
-# ==================================================
-
-@bot.command(name="del")
-
-async def del_user(
-
-    ctx,
-    member: discord.Member
-):
-
-    await ctx.channel.set_permissions(
-
-        member,
-
-        overwrite=None
-    )
-
-    await ctx.send(
-        f"➖ {member.mention} retiré du ticket."
-    )
-
-# ==================================================
-# RENAME
-# ==================================================
-
-@bot.command()
-
-async def rename(
-
-    ctx,
-    *,
-    name
-):
-
-    await ctx.channel.edit(name=name)
-
-    await ctx.send(
-        f"✏️ Ticket renommé en : {name}"
-    )
-
-# ==================================================
-# CLOSE
-# ==================================================
-
-@bot.command()
-
 async def close(ctx):
 
     def check(m):
 
         return (
-
             m.author == ctx.author
-
             and m.channel == ctx.channel
         )
 
@@ -709,9 +580,7 @@ async def close(ctx):
 
         "1️⃣ Acceptée\n"
 
-        "2️⃣ Refusée\n\n"
-
-        "Réponds avec 1 ou 2"
+        "2️⃣ Refusée"
     )
 
     try:
@@ -736,10 +605,8 @@ async def close(ctx):
         status = "✅ ACCEPTÉE"
 
         dm_message = (
-            "🎉 Bonjour,\n\n"
-            "Votre candidature staff "
-            "a été ACCEPTÉE.\n\n"
-            "Bienvenue dans le staff !! 👮✨"
+            "🎉 Votre candidature a été ACCEPTÉE.\n\n"
+            "Bienvenue dans le staff 👮✨"
         )
 
     elif reply.content == "2":
@@ -747,11 +614,8 @@ async def close(ctx):
         status = "❌ REFUSÉE"
 
         dm_message = (
-            "📋 Bonjour,\n\n"
-            "Votre candidature staff "
-            "a été REFUSÉE.\n\n"
-            "Merci quand même "
-            "d'avoir tenté votre chance ❤️"
+            "📋 Votre candidature a été REFUSÉE.\n\n"
+            "Merci d'avoir tenté votre chance ❤️"
         )
 
     else:
@@ -778,17 +642,55 @@ async def close(ctx):
     if user:
 
         try:
-            await user.send(dm_message)
+
+            embed = discord.Embed(
+
+                title="📋 Résultat candidature",
+
+                description=dm_message,
+
+                color=discord.Color.green()
+            )
+
+            await user.send(embed=embed)
+
         except:
             pass
 
-    archive = bot.get_channel(
+    transcript = ""
+
+    async for message in ctx.channel.history(
+
+        limit=None,
+        oldest_first=True
+    ):
+
+        time = message.created_at.strftime(
+            "%d/%m/%Y %H:%M"
+        )
+
+        transcript += (
+            f"[{time}] "
+            f"{message.author}: "
+            f"{message.content}\n"
+        )
+
+    transcript_bytes = io.BytesIO(
+        transcript.encode()
+    )
+
+    file = discord.File(
+        transcript_bytes,
+        filename=f"{ctx.channel.name}.txt"
+    )
+
+    logs_channel = bot.get_channel(
         ARCHIVES_CHANNEL
     )
 
     embed = discord.Embed(
 
-        title="📋 Candidature fermée",
+        title="📋 Registre Recrutement",
 
         description=(
             f"👤 Candidat : "
@@ -797,29 +699,26 @@ async def close(ctx):
             f"📌 Statut : {status}\n"
 
             f"👮 Staff : "
-            f"{ctx.author.mention}\n\n"
-
-            f"🕒 Date : {datetime.utcnow()}"
+            f"{ctx.author.mention}"
         ),
 
         color=discord.Color.orange()
     )
 
-    if archive:
+    if logs_channel:
 
-        await archive.send(embed=embed)
-
-    category = bot.get_channel(
-        LOGS_CATEGORY
-    )
-
-    await ctx.channel.edit(
-        category=category
-    )
+        await logs_channel.send(
+            embed=embed,
+            file=file
+        )
 
     await ctx.send(
-        "📂 Ticket déplacé dans recrutements logs."
+        "🗑️ Suppression du ticket..."
     )
+
+    await asyncio.sleep(3)
+
+    await ctx.channel.delete()
 
 # ==================================================
 # RUN
