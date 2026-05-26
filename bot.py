@@ -44,8 +44,6 @@ async def on_ready():
     channel = bot.get_channel(TICKET_PANEL_CHANNEL)
     if channel:
         try:
-            # ENLEVÉ : Plus de purge automatique ici pour éviter le crash de l'hébergeur
-            
             embed_panel = discord.Embed(
                 title="🪐 RECRUTEMENT DE L'ÉQUIPE STAFF",
                 description=(
@@ -179,7 +177,7 @@ async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
     db_sanctions[member.id].append(reason)
     
     embed = discord.Embed(
-        title="⚠️ ALERT / DOSSIER MISE À ZONE",
+        title="⚠️ ALERT / DOSSIER MISE À JOUR",
         description=f"Un avertissement officiel a été attribué à {member.mention}.",
         color=discord.Color.from_rgb(241, 196, 15)
     )
@@ -468,6 +466,8 @@ class CloseTicketModal(discord.ui.Modal):
             color=self.color,
             timestamp=datetime.now()
         )
+        
         embed_mp.add_field(name="📋 Statut", value=f"**{self.status}**", inline=True)
         embed_mp.add_field(name="👮 Traité par", value=f"{interaction.user.mention}", inline=True)
-        embed_mp.add_field(name
+        embed_mp.add_field(name="📅 Date", value=current_time, inline=True)
+        embed_mp.add_field(name="📌 Motif", valu
