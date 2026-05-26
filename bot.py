@@ -296,7 +296,7 @@ async def tempmute(ctx, member: discord.Member, time: int):
         try:
             embed_mp = discord.Embed(
                 title="🔊 PAROLE RÈTABLIE", 
-                description=f"Votre sourdine temporaire est terminée sur **{ctx.guild.name}**.", 
+                description=f"Votre sourdine temporaire is terminée sur **{ctx.guild.name}**.", 
                 color=discord.Color.green(),
                 timestamp=datetime.now()
             )
@@ -452,4 +452,4 @@ class CloseTicketModal(discord.ui.Modal):
             embed_trans = discord.Embed(title="📄 TRANSCRIPT RECRUTEMENT", color=self.color, timestamp=datetime.now())
             embed_trans.add_field(name="Salon", value=self.channel_name, inline=True)
             embed_trans.add_field(name="Candidat", value=self.member.mention, inline=True)
-            embed_trans.add
+            embed_trans.add_
