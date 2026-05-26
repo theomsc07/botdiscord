@@ -109,7 +109,6 @@ async def clear(ctx, amount: int):
 async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
     db_sanctions[member.id].append(reason)
     
-    # Envoi du MP classe
     try:
         embed_mp = discord.Embed(
             title="⚠️ AVERTISSEMENT OFFICIEL", 
@@ -149,7 +148,6 @@ async def clear_sanctions(ctx, member: discord.Member):
 @commands.has_permissions(kick_members=True)
 async def kick(ctx, member: discord.Member, *, reason="Aucune raison"):
     try:
-        # Envoi du MP avant l'expulsion
         try:
             embed_mp = discord.Embed(
                 title="☄️ EXPULSION DU SERVEUR", 
@@ -176,7 +174,6 @@ async def kick(ctx, member: discord.Member, *, reason="Aucune raison"):
 @commands.has_permissions(ban_members=True)
 async def ban(ctx, member: discord.Member, *, reason="Aucune raison"):
     try:
-        # Envoi du MP avant le bannissement
         try:
             embed_mp = discord.Embed(
                 title="💥 BANNISSEMENT DÉFINITIF", 
@@ -222,7 +219,6 @@ async def mute(ctx, member: discord.Member):
     
     await member.add_roles(role)
 
-    # Envoi du MP
     try:
         embed_mp = discord.Embed(
             title="🤫 SOURDINE GLOBALE", 
@@ -247,7 +243,6 @@ async def unmute(ctx, member: discord.Member):
     role = discord.utils.get(ctx.guild.roles, name="Muted")
     if role and role in member.roles:
         await member.remove_roles(role)
-        # Envoi du MP
         try:
             embed_mp = discord.Embed(
                 title="📣 SOURDINE LEVÉE", 
@@ -276,7 +271,6 @@ async def tempmute(ctx, member: discord.Member, time: int):
             
     await member.add_roles(role)
 
-    # Envoi du MP au début du tempmute
     try:
         embed_mp = discord.Embed(
             title="⏳ SOURDINE TEMPORAIRE", 
@@ -299,7 +293,6 @@ async def tempmute(ctx, member: discord.Member, time: int):
     
     if role in member.roles:
         await member.remove_roles(role)
-        # Envoi du MP à la fin du tempmute
         try:
             embed_mp = discord.Embed(
                 title="🔊 PAROLE RÈTABLIE", 
@@ -456,4 +449,8 @@ class CloseTicketModal(discord.ui.Modal):
 
         transcript = interaction.guild.get_channel(TRANSCRIPT_CHANNEL_ID)
         if transcript:
-            embed_trans = discord.Embed(title="📄 TRANSCRIPT RECRUTEMENT", color=self.color,
+            embed_trans = discord.Embed(title="📄 TRANSCRIPT RECRUTEMENT", color=self.color, timestamp=datetime.now())
+            embed_trans.add_field(name="Salon", value=self.channel_name, inline=True)
+            embed_trans.add_field(name="Candidat", value=self.member.mention, inline=True)
+            embed_trans.add
+        
