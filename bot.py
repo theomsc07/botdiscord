@@ -17,7 +17,6 @@ GERANT_STAFF_ID = 1504792751777255545
 ROLE_STAFF = 1504810257715822722
 TICKET_CAT_ID = 1504792910892109935
 R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 1504792764448116776, 1504792759679057951, 1504792748098715660
-PANEL_IMAGE_URL = "https://i.imgur.com/8N4N8f8.png"
 
 # --- UTILITAIRES ---
 async def send_log(action, ctx, target, reason="Aucune"):
@@ -40,7 +39,7 @@ async def send_mod_embed(ctx, action, target, reason):
     e.set_footer(text="Si erreur/abus, contactez le gérant staff : @theo_msc")
     return e
 
-# --- SYSTÈME DE TICKETS ---
+# --- TICKETS ---
 class DecisionModal(discord.ui.Modal):
     def __init__(self, target, decision):
         super().__init__(title=f"Réponse à {target.name}")
@@ -130,7 +129,8 @@ async def derank(ctx, m: discord.Member):
 @commands.has_permissions(administrator=True)
 async def setup_ticket(ctx):
     e = discord.Embed(title="◈ RECRUTEMENT ◈", description="Cliquez ci-dessous.", color=0x000000)
-    e.set_thumbnail(url=bot.user.display_avatar.url); e.set_image(url=PANEL_IMAGE_URL)
+    e.set_thumbnail(url=bot.user.display_avatar.url)
+    e.set_image(url=bot.user.display_avatar.url) # Utilise la photo du bot ici
     await ctx.send(embed=e, view=TicketPanel())
 
 @bot.event
@@ -139,4 +139,3 @@ async def on_ready():
     print("✅ Bot prêt.")
 
 bot.run(TOKEN)
-        
