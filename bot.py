@@ -43,25 +43,42 @@ class TicketPanel(discord.ui.View):
         await ch.send(content=f"{i.user.mention} | <@&{GERANT_STAFF_ID}>", embed=e)
         await i.response.send_message("✅ Dossier créé.", ephemeral=True)
 
+# --- COMMANDES RANK SÉCURISÉES ---
 @bot.command()
-async def rank_t(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await log_and_mp(ctx, "RANK-T", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Staff Test**.")
+async def rank_t(ctx, m: discord.Member): 
+    r1, r2 = ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)
+    if r1 and r2: await m.add_roles(r1, r2); await log_and_mp(ctx, "RANK-T", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Staff Test.")
+    else: await ctx.send("❌ Erreur : Rôles introuvables.")
 @bot.command()
-async def rank_c(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_C)); await log_and_mp(ctx, "RANK-C", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Confirmé**.")
+async def rank_c(ctx, m: discord.Member): 
+    r = ctx.guild.get_role(R_C)
+    if r: await m.add_roles(r); await log_and_mp(ctx, "RANK-C", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Confirmé.")
+    else: await ctx.send("❌ Erreur : Rôle introuvable.")
 @bot.command()
-async def rank_plus(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_PLUS)); await log_and_mp(ctx, "RANK-PLUS", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Staff+**.")
+async def rank_plus(ctx, m: discord.Member): 
+    r = ctx.guild.get_role(R_PLUS)
+    if r: await m.add_roles(r); await log_and_mp(ctx, "RANK-PLUS", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Staff+.")
+    else: await ctx.send("❌ Erreur : Rôle introuvable.")
 @bot.command()
-async def rank_s(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_SENIOR)); await log_and_mp(ctx, "RANK-SENIOR", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Senior**.")
+async def rank_s(ctx, m: discord.Member): 
+    r = ctx.guild.get_role(R_SENIOR)
+    if r: await m.add_roles(r); await log_and_mp(ctx, "RANK-SENIOR", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Senior.")
+    else: await ctx.send("❌ Erreur : Rôle introuvable.")
 @bot.command()
-async def rank_admin(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_ADMIN)); await log_and_mp(ctx, "RANK-ADMIN", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Admin**.")
+async def rank_admin(ctx, m: discord.Member): 
+    r = ctx.guild.get_role(R_ADMIN)
+    if r: await m.add_roles(r); await log_and_mp(ctx, "RANK-ADMIN", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Admin.")
+    else: await ctx.send("❌ Erreur : Rôle introuvable.")
 @bot.command()
 async def derank(ctx, m: discord.Member):
-    for r in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]: 
-        role = ctx.guild.get_role(r)
-        if role: await m.remove_roles(role)
+    for r_id in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]: 
+        r = ctx.guild.get_role(r_id)
+        if r: await m.remove_roles(r)
     await log_and_mp(ctx, "DERANK", m, "Dégradation"); await ctx.send(f"🐉 {m.mention} a été dégradé.")
 
+# --- MODÉRATION ---
 @bot.command()
-async def warn(ctx, m: discord.Member, *, r="Aucune"): await log_and_mp(ctx, "WARN", m, r); await ctx.send(f"⚠️ {m.mention} a été averti.")
+async def warn(ctx, m: discord.Member, *, r="Aucune"): await log_and_mp(ctx, "WARN", m, r); await ctx.send(f"⚠️ {m.mention} averti.")
 @bot.command()
 async def kick(ctx, m: discord.Member, *, r="Aucune"): await m.kick(reason=r); await log_and_mp(ctx, "KICK", m, r); await ctx.send(f"👢 {m.mention} expulsé.")
 @bot.command()
@@ -69,21 +86,17 @@ async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); awa
 @bot.command()
 async def unban(ctx, user_id: int):
     try:
-        user = await bot.fetch_user(user_id)
-        await ctx.guild.unban(user)
-        await log_and_mp(ctx, "UNBAN", user, "Débannissement")
-        await ctx.send(f"✅ {user.mention} a été débanni.")
-    except: await ctx.send("❌ Utilisateur introuvable ou non banni.")
-
+        user = await bot.fetch_user(user_id); await ctx.guild.unban(user); await log_and_mp(ctx, "UNBAN", user, "Débannissement"); await ctx.send(f"✅ {user.mention} débanni.")
+    except: await ctx.send("❌ Utilisateur introuvable.")
 @bot.command()
 async def tempmute(ctx, m: discord.Member, s: int):
     role = ctx.guild.get_role(ROLE_MUTED)
-    if role: await m.add_roles(role); await log_and_mp(ctx, "TEMPMUTE", m, f"{s}s"); await ctx.send(f"🔇 {m.mention} muté pour {s}s.")
-    await asyncio.sleep(s); await m.remove_roles(role)
+    if role: await m.add_roles(role); await log_and_mp(ctx, "TEMPMUTE", m, f"{s}s"); await ctx.send(f"🔇 {m.mention} muté {s}s."); await asyncio.sleep(s); await m.remove_roles(role)
 @bot.command()
 async def unmute(ctx, m: discord.Member): 
     await m.remove_roles(ctx.guild.get_role(ROLE_MUTED)); await log_and_mp(ctx, "UNMUTE", m, "Manuel"); await ctx.send(f"🔊 {m.mention} unmute.")
 
+# --- TICKETS & OUTILS ---
 @bot.command()
 async def setup_ticket(ctx): e = discord.Embed(title="◈ RECRUTEMENT ◈", description="Cliquez pour candidater.", color=0x2f3136); e.set_thumbnail(url=bot.user.display_avatar.url); await ctx.send(embed=e, view=TicketPanel())
 @bot.command()
@@ -94,9 +107,8 @@ async def remove(ctx, m: discord.Member): await ctx.channel.set_permissions(m, v
 async def rename(ctx, *, nom: str): await ctx.channel.edit(name=nom); await ctx.send(f"✅ Renommé en : {nom}")
 @bot.command()
 async def close(ctx): await ctx.channel.delete()
-
 @bot.command()
-async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await ctx.send(f"🧹 {n} msgs effacés.")
+async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await ctx.send(f"🧹 {n} messages effacés.")
 @bot.command()
 async def clear_sanctions(ctx, n: int): 
     log_ch = bot.get_channel(LOG_CH_ID)
