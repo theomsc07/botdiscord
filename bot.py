@@ -18,27 +18,6 @@ ROLE_STAFF = 1504810257715822722
 TICKET_CAT_ID = 1504792910892109935
 R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 1504792764448116776, 1504792759679057951, 1504792748098715660
 
-# --- UTILITAIRES ---
-async def send_log(action, ctx, target, reason="Aucune"):
-    log_ch = bot.get_channel(LOG_CH_ID)
-    if log_ch:
-        e = discord.Embed(title=f"◈ LOG : {action} ◈", color=0x3498DB, timestamp=datetime.now())
-        if target: e.set_thumbnail(url=target.display_avatar.url)
-        e.add_field(name="Cible", value=target.mention if target else "N/A", inline=True)
-        e.add_field(name="Staff", value=ctx.author.mention, inline=True)
-        e.add_field(name="Détails", value=reason, inline=False)
-        await log_ch.send(embed=e)
-
-async def send_mod_embed(ctx, action, target, reason):
-    e = discord.Embed(title=f"◈ SANCTION : {action} ◈", color=0xFF0000, timestamp=datetime.now())
-    e.set_author(name=bot.user.name, icon_url=bot.user.display_avatar.url)
-    e.set_thumbnail(url=target.display_avatar.url)
-    e.add_field(name="Membre", value=target.mention, inline=False)
-    e.add_field(name="Staff", value=ctx.author.mention, inline=True)
-    e.add_field(name="Raison", value=reason, inline=True)
-    e.set_footer(text="Si erreur/abus, contactez le gérant staff : @theo_msc")
-    return e
-
 # --- TICKETS ---
 class DecisionModal(discord.ui.Modal):
     def __init__(self, target, decision):
@@ -75,68 +54,30 @@ class TicketPanel(discord.ui.View):
 
 # --- COMMANDES ---
 @bot.command()
-@commands.has_permissions(kick_members=True)
-async def warn(ctx, m: discord.Member, *, r="Aucune"):
-    embed = await send_mod_embed(ctx, "WARN", m, r)
-    try: await m.send(embed=embed)
-    except: pass
-    await ctx.send(embed=embed); await send_log("WARN", ctx, m, r)
+@commands.has_permissions(manage_messages=True)
+async def clear(ctx, n: int):
+    await ctx.message.delete()
+    deleted = await ctx.channel.purge(limit=n)
+    await ctx.send(f"🧹 {len(deleted)} messages supprimés.", delete_after=3)
 
 @bot.command()
-@commands.has_permissions(kick_members=True)
-async def kick(ctx, m: discord.Member, *, r="Aucune"):
-    embed = await send_mod_embed(ctx, "KICK", m, r)
-    try: await m.send(embed=embed)
-    except: pass
-    await m.kick(reason=r); await ctx.send(embed=embed); await send_log("KICK", ctx, m, r)
-
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, m: discord.Member, *, r="Aucune"):
-    embed = await send_mod_embed(ctx, "BAN", m, r)
-    try: await m.send(embed=embed)
-    except: pass
-    await m.ban(reason=r); await ctx.send(embed=embed); await send_log("BAN", ctx, m, r)
-
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def tempmute(ctx, m: discord.Member, s: int):
-    embed = await send_mod_embed(ctx, "TEMPMUTE", m, f"{s}s")
-    try: await m.send(embed=embed)
-    except: pass
-    for ch in ctx.guild.text_channels: await ch.set_permissions(m, send_messages=False)
-    await ctx.send(embed=embed); await send_log("TEMPMUTE", ctx, m, f"{s}s")
-    await asyncio.sleep(s)
-    for ch in ctx.guild.text_channels: await ch.set_permissions(m, send_messages=None)
-    await ctx.send(f"✅ {m.mention} unmute.")
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def rank_t(ctx, m: discord.Member):
-    r = ctx.guild.get_role(R_T)
-    await m.add_roles(r, ctx.guild.get_role(ROLE_STAFF))
-    await ctx.send(f"✅ {m.mention} est désormais {r.mention} !"); await send_log("RANK-T", ctx, m)
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def derank(ctx, m: discord.Member):
-    for r_id in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]:
-        role = ctx.guild.get_role(r_id)
-        if role: await m.remove_roles(role)
-    await ctx.send(f"🐉 {m.mention} est redevenu un simple mortel."); await send_log("DERANK", ctx, m)
+@commands.has_role(GERANT_STAFF_ID)
+async def del(ctx):
+    await ctx.send("⏳ Suppression du salon dans 2 secondes...")
+    await asyncio.sleep(2)
+    await ctx.channel.delete()
 
 @bot.command()
 @commands.has_role(GERANT_STAFF_ID)
 async def add(ctx, m: discord.Member): await ctx.channel.set_permissions(m, view_channel=True, send_messages=True); await ctx.send(f"✅ {m.mention} ajouté.")
+
 @bot.command()
 @commands.has_role(GERANT_STAFF_ID)
 async def remove(ctx, m: discord.Member): await ctx.channel.set_permissions(m, view_channel=False); await ctx.send(f"✅ {m.mention} retiré.")
+
 @bot.command()
 @commands.has_role(GERANT_STAFF_ID)
 async def rename(ctx, *, nom: str): await ctx.channel.edit(name=nom); await ctx.send(f"✅ Renommé en : {nom}")
-@bot.command()
-@commands.has_role(GERANT_STAFF_ID)
-async def del_ticket(ctx): await ctx.send("Suppression..."); await asyncio.sleep(2); await ctx.channel.delete()
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -148,6 +89,7 @@ async def setup_ticket(ctx):
 @bot.event
 async def on_ready():
     bot.add_view(TicketPanel())
-    print("✅ Bot prêt.")
+    print("✅ Bot opérationnel.")
 
 bot.run(TOKEN)
+                                                                         
