@@ -18,7 +18,7 @@ ROLE_STAFF = 1504810257715822722
 TICKET_CAT_ID = 1504792910892109935
 R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 1504792764448116776, 1504792759679057951, 1504792748098715660
 
-# --- LOGS & EMBEDS ---
+# --- UTILITAIRES ---
 async def send_log(action, ctx, target, reason="Aucune"):
     log_ch = bot.get_channel(LOG_CH_ID)
     if log_ch:
@@ -126,13 +126,22 @@ async def derank(ctx, m: discord.Member):
     await ctx.send(f"🐉 {m.mention} est redevenu un simple mortel."); await send_log("DERANK", ctx, m)
 
 @bot.command()
+@commands.has_role(GERANT_STAFF_ID)
+async def add(ctx, m: discord.Member): await ctx.channel.set_permissions(m, view_channel=True, send_messages=True); await ctx.send(f"✅ {m.mention} ajouté.")
+@bot.command()
+@commands.has_role(GERANT_STAFF_ID)
+async def remove(ctx, m: discord.Member): await ctx.channel.set_permissions(m, view_channel=False); await ctx.send(f"✅ {m.mention} retiré.")
+@bot.command()
+@commands.has_role(GERANT_STAFF_ID)
+async def rename(ctx, *, nom: str): await ctx.channel.edit(name=nom); await ctx.send(f"✅ Renommé en : {nom}")
+@bot.command()
+@commands.has_role(GERANT_STAFF_ID)
+async def del_ticket(ctx): await ctx.send("Suppression..."); await asyncio.sleep(2); await ctx.channel.delete()
+
+@bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_ticket(ctx):
-    e = discord.Embed(
-        title="◈ RECRUTEMENT ◈", 
-        description="Bonjour, tu veux tenter ta chance pour devenir staff ? Je te laisse appuyer sur le bouton pour envoyer ta candidature !", 
-        color=0x000000
-    )
+    e = discord.Embed(title="◈ RECRUTEMENT ◈", description="Bonjour, tu veux tenter ta chance pour devenir staff ? Je te laisse appuyer sur le bouton pour envoyer ta candidature !", color=0x000000)
     e.set_thumbnail(url=bot.user.display_avatar.url)
     await ctx.send(embed=e, view=TicketPanel())
 
@@ -142,4 +151,3 @@ async def on_ready():
     print("✅ Bot prêt.")
 
 bot.run(TOKEN)
-        
