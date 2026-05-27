@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import asyncio
+import os
 from datetime import datetime
 
 # ==============================================================================
@@ -10,7 +11,8 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="+", intents=intents)
-TOKEN = "TON_TOKEN_ICI" # Remplacer par ton vrai token
+
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 # IDs (À REMPLACER)
 LOG_CH_ID = 1508595464168013965
@@ -22,7 +24,7 @@ R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 
 sanctions_db = {}
 
 # ==============================================================================
-# FONCTIONS LOGS & MP
+# FONCTIONS UTILITAIRES
 # ==============================================================================
 async def log_action(ctx, action, target, reason="Aucune"):
     log_ch = bot.get_channel(LOG_CH_ID)
@@ -83,10 +85,8 @@ async def helpstaff(ctx):
     e.add_field(name="⚠️ Sanctions", value="`+sanctions` `+clear-sanctions`", inline=False)
     e.add_field(name="👑 Grades", value="`+rank-t` (T+Staff) | `+rank-c/plus/senior/admin` | `+derank`", inline=False)
     e.add_field(name="🎫 Tickets", value="`+setup_ticket` `+close`", inline=False)
-    e.set_thumbnail(url=bot.user.display_avatar.url)
     await ctx.send(embed=e)
 
-# Commandes de Modération
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await log_action(ctx, "CLEAR", ctx.channel, f"{n} msg")
@@ -95,10 +95,13 @@ async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await log_acti
 async def warn(ctx, m: discord.Member, *, r="Aucune"): sanctions_db.setdefault(m.id, []).append(r); await send_dm(m, "AVERTISSEMENT", ctx.author, r); await log_action(ctx, "WARN", m, r); await ctx.send("✅ Averti.")
 @bot.command()
 @commands.has_permissions(kick_members=True)
-async def kick(ctx, m: discord.Member, *, r="Aucune"): await m.kick(reason=r); await log_action(ctx, "KICK", m, r)
+async def kick(ctx, m: discord.Member, *, r="Aucune"): await m.kick(reason=r); await log_action(ctx, "KICK", m, r); await ctx.send("☄️ Expulsé.")
 @bot.command()
 @commands.has_permissions(ban_members=True)
-async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); await log_action(ctx, "BAN", m, r)
+async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); await log_action(ctx, "BAN", m, r); await ctx.send("💥 Banni.")
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def unban(ctx, uid: int): u = await bot.fetch_user(uid); await ctx.guild.unban(u); await log_action(ctx, "UNBAN", u, "Débannissement"); await ctx.send(f"🔓 {u.name} débanni.")
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def tempmute(ctx, m: discord.Member, s: int):
@@ -111,19 +114,17 @@ async def unmute(ctx, m: discord.Member):
     for ch in ctx.guild.text_channels: await ch.set_permissions(m, send_messages=None)
     await log_action(ctx, "UNMUTE", m, "Parole rendue"); await ctx.send("✅ Parole rendue.")
 
-# Grades
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def rank_t(ctx, m: discord.Member): await clean_grades(m); await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await ctx.send("✅ T et Staff.")
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def derank(ctx, m: discord.Member): await clean_grades(m); s = ctx.guild.get_role(ROLE_STAFF); await m.remove_roles(s); await ctx.send("❌ Totalement dégradé.")
-
-# Divers
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_ticket(ctx): await ctx.send(embed=discord.Embed(title="RECRUTEMENT", description="Ouvrir ticket.", color=discord.Color.dark_gray()), view=TicketPanel())
+
 @bot.event
 async def on_ready(): bot.add_view(TicketPanel()); print("✅ Bot opérationnel.")
 bot.run(TOKEN)
-        
+                                                                                                                                       
