@@ -25,7 +25,7 @@ async def send_log(action, ctx, target, reason="Aucune"):
     log_ch = bot.get_channel(LOG_CH_ID)
     if log_ch:
         e = discord.Embed(title=f"◈ LOG : {action} ◈", color=0x3498DB, timestamp=datetime.now())
-        e.add_field(name="Cible", value=f"{target.mention}", inline=True)
+        e.add_field(name="Cible", value=f"{target.mention}" if target else "N/A", inline=True)
         e.add_field(name="Staff", value=ctx.author.mention, inline=True)
         e.add_field(name="Détails", value=reason, inline=False)
         e.set_thumbnail(url=bot.user.display_avatar.url)
@@ -61,7 +61,7 @@ class TicketPanel(discord.ui.View):
         await ch.send(content=f"{i.user.mention} | <@&{GERANT_STAFF_ID}>", embed=e, view=TicketView(i.user))
         await i.response.send_message(f"✅ Ticket : {ch.mention}", ephemeral=True)
 
-# --- COMMANDES GRADES ET GESTION ---
+# --- COMMANDES ---
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def rank_t(ctx, m: discord.Member):
@@ -100,7 +100,6 @@ async def derank(ctx, m: discord.Member):
         if role: await m.remove_roles(role)
     await send_log("DERANK", ctx, m, "Dégradé"); await ctx.send(f"🐉 {m.mention} est maintenant un simple mortel.")
 
-# --- MODÉRATION ---
 @bot.command()
 @commands.has_permissions(kick_members=True)
 async def warn(ctx, m: discord.Member, *, r="Aucune"): await send_log("WARN", ctx, m, r); await ctx.send("✅")
@@ -110,6 +109,9 @@ async def kick(ctx, m: discord.Member, *, r="Aucune"): await m.kick(reason=r); a
 @bot.command()
 @commands.has_permissions(ban_members=True)
 async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); await send_log("BAN", ctx, m, r); await ctx.send("✅")
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await send_log("CLEAR", ctx, None, f"{n} messages supprimés"); await ctx.send(f"✅ {n} messages effacés.", delete_after=3)
 
 @bot.command()
 @commands.has_permissions(administrator=True)
