@@ -18,16 +18,20 @@ LOG_CH_ID = 1508595464168013965
 GERANT_STAFF_ID = 1504792751777255545
 ROLE_STAFF = 1504810257715822722
 TICKET_CAT_ID = 1504792910892109935
-R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 1504792764448116776, 1504792759679057951, 1504792748098715660
+R_T = 1504792771977023591
+R_C = 1504792768088903931
+R_PLUS = 1504792764448116776
+R_SENIOR = 1504792759679057951
+R_ADMIN = 1504792748098715660
 
-# --- LOG SYSTEM (TOUT PASSE PAR ICI) ---
+# --- LOG SYSTEM ---
 async def send_log(action, ctx, target, reason="Aucune"):
     log_ch = bot.get_channel(LOG_CH_ID)
     if log_ch:
         e = discord.Embed(title=f"◈ LOG : {action} ◈", color=0x3498DB, timestamp=datetime.now())
         e.add_field(name="Cible", value=f"{target.mention}", inline=True)
         e.add_field(name="Staff", value=ctx.author.mention, inline=True)
-        e.add_field(name="Raison/Détail", value=reason, inline=False)
+        e.add_field(name="Détails", value=reason, inline=False)
         e.set_thumbnail(url=bot.user.display_avatar.url)
         await log_ch.send(embed=e)
 
@@ -78,19 +82,37 @@ async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); awa
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def rank_t(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await send_log("RANK-T", ctx, m); await ctx.send("✅")
+async def rank_t(ctx, m: discord.Member):
+    role_t = ctx.guild.get_role(R_T)
+    role_staff = ctx.guild.get_role(ROLE_STAFF)
+    if role_t and role_staff:
+        await m.add_roles(role_t, role_staff)
+        await send_log("RANK-T", ctx, m)
+        await ctx.send("✅")
+
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def rank_c(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_C)); await send_log("RANK-C", ctx, m); await ctx.send("✅")
+async def rank_c(ctx, m: discord.Member):
+    role = ctx.guild.get_role(R_C)
+    if role: await m.add_roles(role); await send_log("RANK-C", ctx, m); await ctx.send("✅")
+
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def rank_plus(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_PLUS)); await send_log("RANK-PLUS", ctx, m); await ctx.send("✅")
+async def rank_plus(ctx, m: discord.Member):
+    role = ctx.guild.get_role(R_PLUS)
+    if role: await m.add_roles(role); await send_log("RANK-PLUS", ctx, m); await ctx.send("✅")
+
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def rank_senior(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_SENIOR)); await send_log("RANK-SENIOR", ctx, m); await ctx.send("✅")
+async def rank_senior(ctx, m: discord.Member):
+    role = ctx.guild.get_role(R_SENIOR)
+    if role: await m.add_roles(role); await send_log("RANK-SENIOR", ctx, m); await ctx.send("✅")
+
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def rank_admin(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_ADMIN)); await send_log("RANK-ADMIN", ctx, m); await ctx.send("✅")
+async def rank_admin(ctx, m: discord.Member):
+    role = ctx.guild.get_role(R_ADMIN)
+    if role: await m.add_roles(role); await send_log("RANK-ADMIN", ctx, m); await ctx.send("✅")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -110,4 +132,4 @@ async def setup_ticket(ctx):
 @bot.event
 async def on_ready(): bot.add_view(TicketPanel()); print("✅ Bot prêt.")
 bot.run(TOKEN)
-                                                                                            
+        
