@@ -20,7 +20,7 @@ ROLE_STAFF = 1504810257715822722
 TICKET_CAT_ID = 1504792910892109935
 R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 1504792764448116776, 1504792759679057951, 1504792748098715660
 
-# --- SYSTÈME DE LOGS GLOBAL ---
+# --- LOG SYSTEM ---
 async def send_log(action, ctx, target, reason="Aucune"):
     log_ch = bot.get_channel(LOG_CH_ID)
     if log_ch:
@@ -55,7 +55,11 @@ class TicketPanel(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="Poser ma candidature", style=discord.ButtonStyle.primary, emoji="🛡️", custom_id="candid_btn")
     async def open_ticket(self, i: discord.Interaction, b):
-        over = {i.guild.default_role: discord.PermissionOverwrite(view_channel=False), i.user: discord.PermissionOverwrite(view_channel=True, send_messages=True), i.guild.get_role(GERANT_STAFF_ID): discord.PermissionOverwrite(view_channel=True, send_messages=True)}
+        over = {
+            i.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            i.user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+            i.guild.get_role(GERANT_STAFF_ID): discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        }
         ch = await i.guild.create_text_channel(name=f"recrut-{i.user.name}", category=i.guild.get_channel(TICKET_CAT_ID), overwrites=over)
         e = discord.Embed(title="◈ CANDIDATURE ◈", description=f"Bonjour {i.user.mention}, posez votre formulaire ici.", color=0x2C2F33)
         await ch.send(content=f"{i.user.mention} | <@&{GERANT_STAFF_ID}>", embed=e, view=TicketView(i.user))
@@ -98,7 +102,8 @@ async def derank(ctx, m: discord.Member):
     for r in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]:
         role = ctx.guild.get_role(r)
         if role: await m.remove_roles(role)
-    await send_log("DERANK", ctx, m, "Dégradé"); await ctx.send(f"🐉 {m.mention} est maintenant un simple mortel.")
+    await send_log("DERANK", ctx, m, "Dégradé")
+    await ctx.send(f"🐉 {m.mention} est maintenant un simple mortel.")
 
 @bot.command()
 @commands.has_permissions(kick_members=True)
@@ -111,7 +116,9 @@ async def kick(ctx, m: discord.Member, *, r="Aucune"): await m.kick(reason=r); a
 async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); await send_log("BAN", ctx, m, r); await ctx.send("✅")
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await send_log("CLEAR", ctx, None, f"{n} messages supprimés"); await ctx.send(f"✅ {n} messages effacés.", delete_after=3)
+async def clear(ctx, n: int):
+    await ctx.channel.purge(limit=n+1)
+    await send_log("CLEAR", ctx, None, f"{n} messages supprimés")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
