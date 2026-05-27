@@ -39,7 +39,7 @@ async def send_mod_embed(ctx, action, target, reason):
     e.set_footer(text="Si erreur/abus, contactez le gérant staff : @theo_msc")
     return e
 
-# --- SYSTÈME DE TICKETS ---
+# --- TICKETS ---
 class DecisionModal(discord.ui.Modal):
     def __init__(self, target, decision):
         super().__init__(title=f"Réponse à {target.name}")
@@ -68,7 +68,7 @@ class TicketPanel(discord.ui.View):
     async def open_ticket(self, i: discord.Interaction, b):
         over = {i.guild.default_role: discord.PermissionOverwrite(view_channel=False), i.user: discord.PermissionOverwrite(view_channel=True, send_messages=True), i.guild.get_role(GERANT_STAFF_ID): discord.PermissionOverwrite(view_channel=True, send_messages=True)}
         ch = await i.guild.create_text_channel(name=f"recrut-{i.user.name}", category=i.guild.get_channel(TICKET_CAT_ID), overwrites=over)
-        e = discord.Embed(title="◈ CANDIDATURE ◈", description=f"Bonjour {i.user.mention}, le staff arrive.", color=0x2C2F33)
+        e = discord.Embed(title="◈ CANDIDATURE ◈", description="Merci d'envoyer votre candidature ici, le gérant staff va s'occuper !", color=0x2C2F33)
         e.set_thumbnail(url=bot.user.display_avatar.url)
         await ch.send(content=f"{i.user.mention} | <@&{GERANT_STAFF_ID}>", embed=e, view=TicketView(i.user))
         await i.response.send_message(f"✅ Ticket ouvert.", ephemeral=True)
@@ -112,6 +112,21 @@ async def tempmute(ctx, m: discord.Member, s: int):
 
 @bot.command()
 @commands.has_permissions(administrator=True)
+async def rank_t(ctx, m: discord.Member):
+    r = ctx.guild.get_role(R_T)
+    await m.add_roles(r, ctx.guild.get_role(ROLE_STAFF))
+    await ctx.send(f"✅ {m.mention} est désormais {r.mention} !"); await send_log("RANK-T", ctx, m)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def derank(ctx, m: discord.Member):
+    for r_id in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]:
+        role = ctx.guild.get_role(r_id)
+        if role: await m.remove_roles(role)
+    await ctx.send(f"🐉 {m.mention} est redevenu un simple mortel."); await send_log("DERANK", ctx, m)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
 async def setup_ticket(ctx):
     e = discord.Embed(
         title="◈ RECRUTEMENT ◈", 
@@ -127,4 +142,4 @@ async def on_ready():
     print("✅ Bot prêt.")
 
 bot.run(TOKEN)
-    
+        
