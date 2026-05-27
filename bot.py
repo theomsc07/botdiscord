@@ -18,7 +18,7 @@ ROLE_STAFF = 1504810257715822722
 TICKET_CAT_ID = 1504792910892109935
 R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN = 1504792771977023591, 1504792768088903931, 1504792764448116776, 1504792759679057951, 1504792748098715660
 
-# --- UTILITAIRES ---
+# --- LOGS & EMBEDS ---
 async def send_log(action, ctx, target, reason="Aucune"):
     log_ch = bot.get_channel(LOG_CH_ID)
     if log_ch:
@@ -39,7 +39,7 @@ async def send_mod_embed(ctx, action, target, reason):
     e.set_footer(text="Si erreur/abus, contactez le gérant staff : @theo_msc")
     return e
 
-# --- TICKETS ---
+# --- SYSTÈME DE TICKETS ---
 class DecisionModal(discord.ui.Modal):
     def __init__(self, target, decision):
         super().__init__(title=f"Réponse à {target.name}")
@@ -71,7 +71,7 @@ class TicketPanel(discord.ui.View):
         e = discord.Embed(title="◈ CANDIDATURE ◈", description=f"Bonjour {i.user.mention}, le staff arrive.", color=0x2C2F33)
         e.set_thumbnail(url=bot.user.display_avatar.url)
         await ch.send(content=f"{i.user.mention} | <@&{GERANT_STAFF_ID}>", embed=e, view=TicketView(i.user))
-        await i.response.send_message(f"✅ Ticket : {ch.mention}", ephemeral=True)
+        await i.response.send_message(f"✅ Ticket ouvert.", ephemeral=True)
 
 # --- COMMANDES ---
 @bot.command()
@@ -112,25 +112,13 @@ async def tempmute(ctx, m: discord.Member, s: int):
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def rank_t(ctx, m: discord.Member):
-    r = ctx.guild.get_role(R_T)
-    await m.add_roles(r, ctx.guild.get_role(ROLE_STAFF))
-    await ctx.send(f"✅ {m.mention} est désormais {r.mention} !"); await send_log("RANK-T", ctx, m)
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def derank(ctx, m: discord.Member):
-    for r_id in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]:
-        role = ctx.guild.get_role(r_id)
-        if role: await m.remove_roles(role)
-    await ctx.send(f"🐉 {m.mention} est redevenu un simple mortel."); await send_log("DERANK", ctx, m)
-
-@bot.command()
-@commands.has_permissions(administrator=True)
 async def setup_ticket(ctx):
-    e = discord.Embed(title="◈ RECRUTEMENT ◈", description="Cliquez ci-dessous.", color=0x000000)
+    e = discord.Embed(
+        title="◈ RECRUTEMENT ◈", 
+        description="Bonjour, tu veux tenter ta chance pour devenir staff ? Je te laisse appuyer sur le bouton pour envoyer ta candidature !", 
+        color=0x000000
+    )
     e.set_thumbnail(url=bot.user.display_avatar.url)
-    e.set_image(url=bot.user.display_avatar.url) # Utilise la photo du bot ici
     await ctx.send(embed=e, view=TicketPanel())
 
 @bot.event
@@ -139,3 +127,4 @@ async def on_ready():
     print("✅ Bot prêt.")
 
 bot.run(TOKEN)
+    
