@@ -44,15 +44,15 @@ class TicketPanel(discord.ui.View):
         await i.response.send_message("✅ Dossier créé.", ephemeral=True)
 
 @bot.command()
-async def rank_t(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await log_and_mp(ctx, "RANK-T", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Staff Test.")
+async def rank_t(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await log_and_mp(ctx, "RANK-T", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Staff Test**.")
 @bot.command()
-async def rank_c(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_C)); await log_and_mp(ctx, "RANK-C", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Confirmé.")
+async def rank_c(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_C)); await log_and_mp(ctx, "RANK-C", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Confirmé**.")
 @bot.command()
-async def rank_plus(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_PLUS)); await log_and_mp(ctx, "RANK-PLUS", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Staff+.")
+async def rank_plus(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_PLUS)); await log_and_mp(ctx, "RANK-PLUS", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Staff+**.")
 @bot.command()
-async def rank_senior(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_SENIOR)); await log_and_mp(ctx, "RANK-SENIOR", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Senior.")
+async def rank_s(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_SENIOR)); await log_and_mp(ctx, "RANK-SENIOR", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Senior**.")
 @bot.command()
-async def rank_admin(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_ADMIN)); await log_and_mp(ctx, "RANK-ADMIN", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Admin.")
+async def rank_admin(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_ADMIN)); await log_and_mp(ctx, "RANK-ADMIN", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Admin**.")
 @bot.command()
 async def derank(ctx, m: discord.Member):
     for r in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]: 
