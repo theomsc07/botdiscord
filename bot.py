@@ -29,7 +29,7 @@ async def send_log(action, ctx, target, reason="Aucune"):
         e.add_field(name="Détails", value=reason, inline=False)
         await log_ch.send(embed=e)
 
-# --- TICKETS ---
+# --- TICKETS GESTION ---
 class TicketPanel(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="Déposer une candidature", style=discord.ButtonStyle.primary, emoji="📝", custom_id="btn_candid")
@@ -41,58 +41,35 @@ class TicketPanel(discord.ui.View):
         await ch.send(content=f"{i.user.mention} | <@&{GERANT_STAFF_ID}>", embed=e)
         await i.response.send_message(f"✅ Dossier créé : {ch.mention}", ephemeral=True)
 
-# --- MODÉRATION ---
+# --- COMMANDES TICKET ---
 @bot.command()
-@commands.has_permissions(kick_members=True)
-async def warn(ctx, m: discord.Member, *, r="Aucune"):
-    await ctx.send(f"⚠️ {m.mention} a été averti : {r}")
-    await send_log("WARN", ctx, m, r)
+@commands.has_role(GERANT_STAFF_ID)
+async def add(ctx, m: discord.Member):
+    await ctx.channel.set_permissions(m, view_channel=True, send_messages=True)
+    await ctx.send(f"✅ {m.mention} ajouté au dossier.")
 
 @bot.command()
-@commands.has_permissions(kick_members=True)
-async def kick(ctx, m: discord.Member, *, r="Aucune"):
-    await m.kick(reason=r)
-    await ctx.send(f"👢 {m.mention} a été expulsé.")
-    await send_log("KICK", ctx, m, r)
+@commands.has_role(GERANT_STAFF_ID)
+async def remove(ctx, m: discord.Member):
+    await ctx.channel.set_permissions(m, view_channel=False)
+    await ctx.send(f"✅ {m.mention} retiré du dossier.")
 
 @bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, m: discord.Member, *, r="Aucune"):
-    await m.ban(reason=r)
-    await ctx.send(f"🔨 {m.mention} a été banni.")
-    await send_log("BAN", ctx, m, r)
+@commands.has_role(GERANT_STAFF_ID)
+async def rename(ctx, *, nom: str):
+    await ctx.channel.edit(name=nom)
+    await ctx.send(f"✅ Salon renommé en : {nom}")
 
 @bot.command()
-@commands.has_permissions(ban_members=True)
-async def unban(ctx, user_id: int):
-    user = await bot.fetch_user(user_id)
-    await ctx.guild.unban(user)
-    await ctx.send(f"✅ {user.name} a été débanni.")
-    await send_log("UNBAN", ctx, user)
+@commands.has_role(GERANT_STAFF_ID)
+async def close(ctx): await ctx.channel.delete()
 
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def tempmute(ctx, m: discord.Member, s: int):
-    for ch in ctx.guild.text_channels: await ch.set_permissions(m, send_messages=False)
-    await ctx.send(f"🔇 {m.mention} muté pour {s} secondes.")
-    await send_log("MUTE", ctx, m, f"{s}s")
-    await asyncio.sleep(s)
-    for ch in ctx.guild.text_channels: await ch.set_permissions(m, send_messages=None)
-
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def unmute(ctx, m: discord.Member):
-    for ch in ctx.guild.text_channels: await ch.set_permissions(m, send_messages=None)
-    await ctx.send(f"🔊 {m.mention} a été unmute.")
-    await send_log("UNMUTE", ctx, m)
-
-# --- GRADES ---
+# --- AUTRES COMMANDES ---
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def rank_t(ctx, m: discord.Member):
     await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF))
-    await ctx.send(f"✅ {m.mention} nommé Staff Test.")
-    await send_log("RANK-T", ctx, m)
+    await ctx.send(f"✅ {m.mention} est Staff Test."); await send_log("RANK-T", ctx, m)
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -100,14 +77,7 @@ async def derank(ctx, m: discord.Member):
     for r_id in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]:
         role = ctx.guild.get_role(r_id)
         if role: await m.remove_roles(role)
-    await ctx.send(f"🐉 {m.mention} a été dégradé.")
-    await send_log("DERANK", ctx, m)
-
-# --- TICKET ADMIN ---
-@bot.command()
-@commands.has_role(GERANT_STAFF_ID)
-async def close(ctx):
-    await ctx.channel.delete()
+    await ctx.send(f"🐉 {m.mention} dégradé."); await send_log("DERANK", ctx, m)
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -122,3 +92,4 @@ async def on_ready():
     print("✅ Bot opérationnel.")
 
 bot.run(TOKEN)
+        
