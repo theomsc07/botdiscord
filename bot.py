@@ -44,15 +44,15 @@ class TicketPanel(discord.ui.View):
         await i.response.send_message("✅ Dossier créé.", ephemeral=True)
 
 @bot.command()
-async def rank_t(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await log_and_mp(ctx, "RANK-T", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Staff Test**.")
+async def rank_t(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_T), ctx.guild.get_role(ROLE_STAFF)); await log_and_mp(ctx, "RANK-T", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Staff Test.")
 @bot.command()
-async def rank_c(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_C)); await log_and_mp(ctx, "RANK-C", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Confirmé**.")
+async def rank_c(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_C)); await log_and_mp(ctx, "RANK-C", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Confirmé.")
 @bot.command()
-async def rank_plus(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_PLUS)); await log_and_mp(ctx, "RANK-PLUS", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Staff+**.")
+async def rank_plus(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_PLUS)); await log_and_mp(ctx, "RANK-PLUS", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Staff+.")
 @bot.command()
-async def rank_senior(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_SENIOR)); await log_and_mp(ctx, "RANK-SENIOR", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Senior**.")
+async def rank_senior(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_SENIOR)); await log_and_mp(ctx, "RANK-SENIOR", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Senior.")
 @bot.command()
-async def rank_admin(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_ADMIN)); await log_and_mp(ctx, "RANK-ADMIN", m, "Promotion"); await ctx.send(f"✅ {m.mention} est maintenant **Admin**.")
+async def rank_admin(ctx, m: discord.Member): await m.add_roles(ctx.guild.get_role(R_ADMIN)); await log_and_mp(ctx, "RANK-ADMIN", m, "Promotion"); await ctx.send(f"✅ {m.mention} est Admin.")
 @bot.command()
 async def derank(ctx, m: discord.Member):
     for r in [ROLE_STAFF, R_T, R_C, R_PLUS, R_SENIOR, R_ADMIN]: 
@@ -66,6 +66,15 @@ async def warn(ctx, m: discord.Member, *, r="Aucune"): await log_and_mp(ctx, "WA
 async def kick(ctx, m: discord.Member, *, r="Aucune"): await m.kick(reason=r); await log_and_mp(ctx, "KICK", m, r); await ctx.send(f"👢 {m.mention} expulsé.")
 @bot.command()
 async def ban(ctx, m: discord.Member, *, r="Aucune"): await m.ban(reason=r); await log_and_mp(ctx, "BAN", m, r); await ctx.send(f"🔨 {m.mention} banni.")
+@bot.command()
+async def unban(ctx, user_id: int):
+    try:
+        user = await bot.fetch_user(user_id)
+        await ctx.guild.unban(user)
+        await log_and_mp(ctx, "UNBAN", user, "Débannissement")
+        await ctx.send(f"✅ {user.mention} a été débanni.")
+    except: await ctx.send("❌ Utilisateur introuvable ou non banni.")
+
 @bot.command()
 async def tempmute(ctx, m: discord.Member, s: int):
     role = ctx.guild.get_role(ROLE_MUTED)
@@ -85,10 +94,13 @@ async def remove(ctx, m: discord.Member): await ctx.channel.set_permissions(m, v
 async def rename(ctx, *, nom: str): await ctx.channel.edit(name=nom); await ctx.send(f"✅ Renommé en : {nom}")
 @bot.command()
 async def close(ctx): await ctx.channel.delete()
+
 @bot.command()
 async def clear(ctx, n: int): await ctx.channel.purge(limit=n+1); await ctx.send(f"🧹 {n} msgs effacés.")
 @bot.command()
-async def clear_sanctions(ctx, n: int): await bot.get_channel(LOG_CH_ID).purge(limit=n); await ctx.send("🧹 Logs purgés.")
+async def clear_sanctions(ctx, n: int): 
+    log_ch = bot.get_channel(LOG_CH_ID)
+    if log_ch: await log_ch.purge(limit=n); await ctx.send(f"🧹 {n} logs supprimés.")
 @bot.command()
 async def sanctions(ctx, m: discord.Member): await ctx.send(embed=discord.Embed(title=f"◈ Sanctions : {m.name} ◈", description="\n".join(sanctions_db.get(m.id, ["Aucune."])), color=0xed4245))
 
