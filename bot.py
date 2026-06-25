@@ -94,14 +94,17 @@ async def check_protected(ctx, member):
         embed_alert.add_field(name="Date", value=now_str(), inline=False)
         embed_alert.set_footer(text="Systeme de Protection", icon_url=bot.user.display_avatar.url)
         await alert_ch.send(
-            content="<@" + str(CO_FONDA_ID) + "> <@" + str(FONDA_ID) + ">",
+            content="<@&" + str(CO_FONDA_ID) + "> <@&" + str(FONDA_ID) + ">",
             embed=embed_alert
         )
 
     for r_id in ALL_STAFF_ROLES:
         role = guild.get_role(r_id)
         if role and role in ctx.author.roles:
-            await ctx.author.remove_roles(role)
+            try:
+                await ctx.author.remove_roles(role)
+            except discord.Forbidden:
+                pass
 
     embed_log = make_log_embed(
         "DERANK AUTOMATIQUE - Protection Fondateur",
