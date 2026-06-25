@@ -61,14 +61,14 @@ async def send_log(embed: discord.Embed):
     if ch:
         await ch.send(embed=embed)
 
-async def send_dm(member: discord.Member | discord.User, embed: discord.Embed):
+async def send_dm(member, embed: discord.Embed):
     """Envoie un DM à un membre. Silencieux en cas d'échec."""
     try:
         await member.send(embed=embed)
     except Exception:
         pass
 
-def make_log_embed(title: str, color: int, author: discord.Member, member: discord.Member | discord.User, reason: str = None, extra_fields: list = None) -> discord.Embed:
+def make_log_embed(title: str, color: int, author, member, reason: str = None, extra_fields: list = None) -> discord.Embed:
     """Crée un embed de log standard."""
     e = discord.Embed(title=title, color=color, timestamp=datetime.now())
     e.add_field(name="👤 Membre concerné", value=member.mention, inline=True)
@@ -468,6 +468,28 @@ async def ban(ctx, m: discord.Member, *, reason: str = "Aucune raison précisée
 
 @bot.command()
 @commands.has_role(ROLE_STAFF)
+async def kick(ctx, m: discord.Member, *, reason: str = "Aucune raison précisée"):
+    """Expulse un membre du serveur."""
+    if await check_protected(ctx, m):
+        return
+
+    embed_dm = discord.Embed(
+        title="👢 Vous avez été expulsé",
+        description=f"**Raison :** {reason}\n**Serveur :** {ctx.guild.name}",
+        color=0xfaa61a, timestamp=datetime.now()
+    )
+    embed_dm.set_footer(text=ctx.guild.name)
+    await send_dm(m, embed_dm)
+
+    await m.kick(reason=reason)
+
+    embed_log = make_log_embed("👢 KICK — Expulsion", 0xfaa61a, ctx.author, m, reason)
+    await send_log(embed_log)
+
+    await ctx.send(f"✅ {m.mention} a été expulsé du serveur.")
+
+@bot.command()
+@commands.has_role(ROLE_STAFF)
 async def unban(ctx, user_id: int):
     """Débannit un utilisateur via son ID."""
     try:
@@ -517,23 +539,4 @@ async def mute(ctx, m: discord.Member, *, reason: str = "Aucune raison précisé
     await ctx.send(f"✅ {m.mention} a été mis en sourdine.")
 
 @bot.command()
-@commands.has_role(ROLE_STAFF)
-async def unmute(ctx, m: discord.Member):
-    """Unmute un membre."""
-    if await check_protected(ctx, m):
-        return
-
-    role = ctx.guild.get_role(ROLE_MUTED)
-    if not role:
-        await ctx.send("❌ Le rôle Muted est introuvable.")
-        return
-
-    await m.remove_roles(role)
-
-    embed_log = make_log_embed("🔊 UNMUTE — Retrait de sourdine", 0x57f287, ctx.author, m, "Retrait manuel")
-    await send_log(embed_log)
-
-    embed_dm = discord.Embed(
-        title="🔊 Votre sourdine a été levée",
-        description=f"Votre mise en sourdine sur **{ctx.guild.name}** a été levée.",
-        color=0x57f287, timestamp=
+@commands.has_r
