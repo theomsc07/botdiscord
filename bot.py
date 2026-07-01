@@ -1069,4 +1069,137 @@ async def close(ctx):
     await asyncio.sleep(3)
     await channel.delete()
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# COMMANDE +kumo — RESET ROLES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KUMO_KEEP_ROLE  = 1504792775600898160
+KUMO_FONDA_ROLE = 1504792741811326986
+
+@bot.command()
+@commands.cooldown(1, 10, commands.BucketType.user)
+async def kumo(ctx):
+    # Verification permission : owner ou role fondateur uniquement
+    is_owner = ctx.author.id == OWNER_ID
+    is_fonda = any(r.id == KUMO_FONDA_ROLE for r in ctx.author.roles)
+
+    if not is_owner and not is_fonda:
+        # Alerte + derank automatique
+        alert_ch = bot.get_channel(ALERT_CH_ID)
+        if alert_ch:
+            e_alert = discord.Embed(
+                title="🚨 TENTATIVE D UTILISATION DE +kumo",
+                color=0xff0000,
+                timestamp=datetime.now()
+            )
+            e_alert.add_field(name="👤 Auteur", value=ctx.author.mention + " (`" + str(ctx.author.id) + "`)", inline=False)
+            e_alert.add_field(name="📁 Salon", value=ctx.channel.mention, inline=True)
+            e_alert.add_field(name="🕐 Date", value=now_str(), inline=False)
+            e_alert.add_field(name="⚡ Consequence", value="Derank automatique applique", inline=False)
+            e_alert.set_thumbnail(url=ctx.author.display_avatar.url)
+            e_alert.set_footer(text="Systeme de Protection", icon_url=bot.user.display_avatar.url)
+            await alert_ch.send(
+                content="<@" + str(OWNER_ID) + "> <@&" + str(CO_FONDA_ID) + "> <@&" + str(FONDA_ID) + ">",
+                embed=e_alert
+            )
+        await auto_derank(ctx.guild, ctx.author)
+        dm = discord.Embed(title="Commande interdite", description="Vous avez tente d utiliser `+kumo` sans autorisation.\nTous vos roles staff ont ete retires.", color=0xff0000, timestamp=datetime.now())
+        dm.set_footer(text=ctx.guild.name)
+        await send_dm(ctx.author, dm)
+        try:
+            await ctx.message.delete()
+        except Exception:
+            pass
+        return
+
+    # Confirmation obligatoire
+    confirm_embed = discord.Embed(
+        title="⚠️ CONFIRMATION REQUISE — +kumo",
+        description=(
+            "Cette commande va **retirer TOUS les roles** de tous les membres du serveur.\n"
+            "Seul le role <@&" + str(KUMO_KEEP_ROLE) + "> sera conserve.\n\n"
+            "Tous les membres affectes recevront automatiquement ce role.\n\n"
+            "**Tapez `CONFIRMER` dans les 30 secondes pour executer.**\n"
+            "Tapez autre chose ou attendez pour annuler."
+        ),
+        color=0xff0000,
+        timestamp=datetime.now()
+    )
+    confirm_embed.set_footer(text="Cette action est irreversible", icon_url=bot.user.display_avatar.url)
+    await ctx.send(embed=confirm_embed)
+
+    def check(m):
+        return m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
+
+    try:
+        msg = await bot.wait_for("message", timeout=30.0, check=check)
+    except asyncio.TimeoutError:
+        await ctx.send("Commande annulee (timeout).", delete_after=5)
+        return
+
+    if msg.content.strip() != "CONFIRMER":
+        await ctx.send("Commande annulee.", delete_after=5)
+        return
+
+    # Execution
+    guild = ctx.guild
+    keep_role = guild.get_role(KUMO_KEEP_ROLE)
+
+    if not keep_role:
+        await ctx.send("Le role a conserver est introuvable. Operation annulee.")
+        return
+
+    progress = await ctx.send("⏳ Reset en cours... Merci de patienter.")
+
+    affected = 0
+    errors = 0
+
+    for member in guild.members:
+        if member.bot:
+            continue
+        try:
+            # Recuperer tous les roles a retirer (sauf @everyone et le role a garder)
+            roles_to_remove = [
+                r for r in member.roles
+                if r != guild.default_role and r.id != KUMO_KEEP_ROLE
+            ]
+            if roles_to_remove:
+                await member.remove_roles(*roles_to_remove, reason="Reset roles +kumo par " + str(ctx.author))
+
+            # Ajouter le role a conserver s il ne l a pas deja
+            if keep_role not in member.roles:
+                await member.add_roles(keep_role, reason="Attribution automatique +kumo")
+
+            affected += 1
+        except discord.Forbidden:
+            errors += 1
+        except Exception:
+            errors += 1
+
+    # Log
+    e_log = discord.Embed(title="⚡ KUMO — Reset des roles", color=0xff0000, timestamp=datetime.now())
+    e_log.add_field(name="👮 Execute par", value=ctx.author.mention, inline=True)
+    e_log.add_field(name="👥 Membres affectes", value=str(affected), inline=True)
+    e_log.add_field(name="❌ Erreurs", value=str(errors), inline=True)
+    e_log.add_field(name="✅ Role conserve", value="<@&" + str(KUMO_KEEP_ROLE) + ">", inline=False)
+    e_log.add_field(name="🕐 Date", value=now_str(), inline=False)
+    e_log.set_footer(text="Systeme de Moderation", icon_url=bot.user.display_avatar.url)
+    await send_log(e_log)
+
+    await progress.edit(content="")
+    result_embed = discord.Embed(
+        title="✅ Reset termine — +kumo",
+        description=(
+            "Tous les roles ont ete retires avec succes.\n\n"
+            "**Membres affectes :** " + str(affected) + "\n"
+            "**Erreurs :** " + str(errors) + "\n"
+            "**Role conserve :** <@&" + str(KUMO_KEEP_ROLE) + ">"
+        ),
+        color=0x57f287,
+        timestamp=datetime.now()
+    )
+    result_embed.set_footer(text=ctx.guild.name, icon_url=bot.user.display_avatar.url)
+    await progress.edit(embed=result_embed)
+
 bot.run(TOKEN)
+
